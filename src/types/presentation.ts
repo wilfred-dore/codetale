@@ -16,6 +16,7 @@ export interface GeneratedSlide {
   mermaidDiagram?: string;
   imageUrl: string;
   audioUrl: string;
+  videoUrl?: string;
   stats?: StatItem[];
   repoMediaUrls?: string[];
 }

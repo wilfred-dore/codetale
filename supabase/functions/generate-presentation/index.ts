@@ -363,6 +363,94 @@ async function generateImage(prompt: string): Promise<string> {
   return imageUrl;
 }
 
+// ─── Avatar Image Generation (consistent presenter character) ────────────────
+
+async function generateAvatarImage(repoName: string): Promise<string> {
+  const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
+  if (!FAL_API_KEY) throw new Error("FAL_API_KEY is not configured");
+
+  const prompt = `A friendly tech presenter, stylized 3D character, professional dark outfit, standing in a modern dark tech studio with holographic screens, facing camera, warm confident expression, half body shot, cinematic purple and blue lighting accents, presenting about ${repoName}, ultra high quality, square composition`;
+
+  console.log("Generating avatar image with fal.ai...");
+
+  const response = await fetch("https://fal.run/fal-ai/flux/dev", {
+    method: "POST",
+    headers: {
+      Authorization: `Key ${FAL_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      prompt,
+      image_size: "square_hd",
+      num_images: 1,
+      enable_safety_checker: false,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error("fal.ai avatar error:", response.status, errText);
+    throw new Error(`Avatar image generation failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const imageUrl = data.images?.[0]?.url;
+  if (!imageUrl) throw new Error("No avatar image returned from fal.ai");
+
+  console.log("Avatar image generated successfully");
+  return imageUrl;
+}
+
+// ─── Avatar Video Generation (image-to-video via MiniMax) ────────────────────
+
+async function generateAvatarVideo(
+  avatarImageUrl: string,
+  slideType: string,
+  slideTitle: string
+): Promise<string> {
+  const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
+  if (!FAL_API_KEY) throw new Error("FAL_API_KEY is not configured");
+
+  const motionPrompts: Record<string, string> = {
+    hook: "The character speaks enthusiastically to camera, natural head movements, engaging eye contact, subtle hand gestures, professional studio setting",
+    architecture: "The character explains a technical concept, using hand gestures to describe a system, professional tone, subtle nodding, studio lighting",
+    impact: "The character speaks with passion and conviction, inspirational expression, gentle hand movements, warm smile, engaging the viewer directly",
+  };
+
+  const prompt = motionPrompts[slideType] || motionPrompts.hook;
+
+  console.log(`Generating avatar video for "${slideTitle}" (${slideType})...`);
+
+  const response = await fetch("https://fal.run/fal-ai/minimax/video-01-live/image-to-video", {
+    method: "POST",
+    headers: {
+      Authorization: `Key ${FAL_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      prompt,
+      image_url: avatarImageUrl,
+      prompt_optimizer: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error("fal.ai video error:", response.status, errText);
+    throw new Error(`Avatar video generation failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const videoUrl = data.video?.url;
+  if (!videoUrl) {
+    console.error("No video URL in fal.ai response:", JSON.stringify(data));
+    throw new Error("No video returned from fal.ai");
+  }
+
+  console.log(`Avatar video generated for "${slideTitle}"`);
+  return videoUrl;
+}
+
 // ─── Gradium Audio Generation — Sequential to respect 2-connection limit ─────
 
 async function generateAudioWithRetry(
@@ -494,13 +582,54 @@ serve(async (req) => {
 
     // Audio SEQUENTIALLY to respect Gradium's 2-connection WebSocket limit
     console.log("Step 3b: Generating audio sequentially...");
-    const audios = await generateAllAudioSequentially(slides, language || "en");
 
-    const images = await Promise.all(imagePromises);
+    // Determine key slides for avatar video (2-3 slides)
+    const KEY_VIDEO_TYPES = ["hook", "architecture", "impact"];
+    const keySlideIndices = slides
+      .map((s: SlideData, i: number) => ({ type: s.type, index: i }))
+      .filter((s: { type: string }) => KEY_VIDEO_TYPES.includes(s.type))
+      .slice(0, 3)
+      .map((s: { index: number }) => s.index);
 
-    // Log audio coverage
+    // Generate avatar image for video companion
+    console.log("Step 3b.1: Generating avatar image...");
+    let avatarImageUrl = "";
+    try {
+      avatarImageUrl = await generateAvatarImage(repoData.name);
+    } catch (err) {
+      console.error("Avatar image failed:", (err as Error).message);
+    }
+
+    // Start audio (sequential) + avatar videos (parallel) + images simultaneously
+    console.log("Step 3c: Audio + Avatar Videos + Images in parallel...");
+
+    const videoPromises = avatarImageUrl
+      ? keySlideIndices.map((i: number) =>
+          generateAvatarVideo(avatarImageUrl, slides[i].type, slides[i].title)
+            .catch((err: Error) => {
+              console.error(`Video for slide ${i + 1} failed:`, err.message);
+              return "";
+            })
+        )
+      : [];
+
+    const [audios, images, ...videoResults] = await Promise.all([
+      generateAllAudioSequentially(slides, language || "en"),
+      Promise.all(imagePromises),
+      ...videoPromises,
+    ]);
+
+    // Map video results to slide indices
+    const videoUrls: string[] = new Array(slides.length).fill("");
+    keySlideIndices.forEach((slideIdx: number, resultIdx: number) => {
+      videoUrls[slideIdx] = videoResults[resultIdx] || "";
+    });
+
+    // Log coverage
     const audioCount = audios.filter(Boolean).length;
+    const videoCount = videoUrls.filter(Boolean).length;
     console.log(`Audio coverage: ${audioCount}/${slides.length} slides`);
+    console.log(`Video coverage: ${videoCount}/${slides.length} slides (key slides only)`);
 
     // Step 4: Assemble presentation with repo media
     console.log("Step 4: Assembling presentation...");
@@ -514,10 +643,11 @@ serve(async (req) => {
         language: repoData.language,
         topics: repoData.topics,
       },
-      slides: slides.map((slide, i) => ({
+      slides: slides.map((slide: SlideData, i: number) => ({
         ...slide,
         imageUrl: images[i] || "",
         audioUrl: audios[i] || "",
+        videoUrl: videoUrls[i] || "",
         repoMediaUrls: repoData.mediaUrls,
       })),
     };

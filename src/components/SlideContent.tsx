@@ -4,6 +4,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
 import { AnimatedStats } from "@/components/AnimatedStats";
+import { AvatarPiP } from "@/components/AvatarPiP";
 import type { GeneratedSlide } from "@/types/presentation";
 import { motion } from "framer-motion";
 import { SlideMediaIndicator } from "@/components/SlideMediaIndicator";
@@ -17,6 +18,7 @@ interface SlideContentProps {
 export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator = false }: SlideContentProps) {
   const hasImage = !!slide.imageUrl;
   const hasRepoMedia = slide.repoMediaUrls && slide.repoMediaUrls.length > 0;
+  const hasVideo = !!slide.videoUrl;
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-start px-6 md:px-12 py-4 overflow-y-auto">
@@ -186,6 +188,11 @@ export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator 
           </ReactMarkdown>
         </motion.div>
       </div>
+
+      {/* Avatar PiP — positioned absolutely over the slide */}
+      {hasVideo && (
+        <AvatarPiP videoUrl={slide.videoUrl!} isActive={isAutoPlaying} />
+      )}
     </div>
   );
 }
