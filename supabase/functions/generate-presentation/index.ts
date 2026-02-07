@@ -220,8 +220,22 @@ async function generateSlides(
   language: string = "en",
   deepWikiContent: string = ""
 ): Promise<SlideData[]> {
+  // Prefer direct OpenAI API, fall back to Lovable AI gateway
+  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+  
+  if (!OPENAI_API_KEY && !LOVABLE_API_KEY) {
+    throw new Error("Neither OPENAI_API_KEY nor LOVABLE_API_KEY is configured");
+  }
+  
+  const useDirectOpenAI = !!OPENAI_API_KEY;
+  const aiEndpoint = useDirectOpenAI
+    ? "https://api.openai.com/v1/chat/completions"
+    : "https://ai.gateway.lovable.dev/v1/chat/completions";
+  const aiKey = useDirectOpenAI ? OPENAI_API_KEY! : LOVABLE_API_KEY!;
+  const aiModel = useDirectOpenAI ? "gpt-4.1" : "openai/gpt-5.2";
+  
+  console.log(`AI provider: ${useDirectOpenAI ? "OpenAI Direct (gpt-4.1)" : "Lovable AI (gpt-5.2)"}`);
 
   const languageGuide: Record<string, string> = {
     en: "Write ALL slide content and voice scripts in English.",
@@ -351,7 +365,7 @@ README (first 3000 chars):
 ${repoData.readme}
 ${deepWikiContent ? `\n\n=== DEEP WIKI ANALYSIS (AI-generated documentation from deepwiki.com) ===\nThis provides deeper architectural insights, component relationships, and design patterns:\n${deepWikiContent}` : ""}`;
 
-  console.log("Calling Lovable AI for slide generation...");
+  console.log(`Calling AI (${aiModel}) for slide generation...`);
 
   // Retry logic for transient AI errors
   let lastAiError: Error | null = null;
@@ -362,15 +376,15 @@ ${deepWikiContent ? `\n\n=== DEEP WIKI ANALYSIS (AI-generated documentation from
     }
 
     const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      aiEndpoint,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${aiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "openai/gpt-5.2",
+          model: aiModel,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
@@ -538,14 +552,18 @@ ${deepWikiContent ? `\n\n=== DEEP WIKI ANALYSIS (AI-generated documentation from
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error(`Lovable AI error (attempt ${aiAttempt + 1}):`, response.status, errText);
+      const provider = useDirectOpenAI ? "OpenAI" : "Lovable AI";
+      console.error(`${provider} error (attempt ${aiAttempt + 1}):`, response.status, errText);
       if (response.status === 429) {
-        throw new Error("AI rate limit exceeded. Please try again in a moment.");
+        throw new Error(`${provider} rate limit exceeded. Please try again in a moment.`);
       }
       if (response.status === 402) {
-        throw new Error("AI credits exhausted. Please add credits to continue.");
+        throw new Error(`${provider} payment required. Please check your API credits.`);
       }
-      lastAiError = new Error(`AI generation failed: ${response.status}`);
+      if (response.status === 401) {
+        throw new Error(`${provider} authentication failed. Please check your API key.`);
+      }
+      lastAiError = new Error(`${provider} generation failed: ${response.status}`);
       continue;
     }
 
