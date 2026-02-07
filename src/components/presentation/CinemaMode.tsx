@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, SkipForward, SkipBack } from "lucide-react";
 import { SlideContent } from "@/components/SlideContent";
 import type { GeneratedSlide } from "@/types/presentation";
 
@@ -15,16 +15,20 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
   const [direction, setDirection] = useState(0);
+  const [audioProgress, setAudioProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout>>();
   const readingTimer = useRef<ReturnType<typeof setTimeout>>();
+  const readingStartTime = useRef<number>(0);
+  const readingDuration = useRef<number>(0);
+  const progressInterval = useRef<ReturnType<typeof setInterval>>();
 
   const slide = slides[currentSlide];
 
-  // ── Estimate reading time for non-audio slides ──
+  // ── Reading time estimate for non-audio slides ──
   const getReadingMs = useCallback((s: GeneratedSlide) => {
     const words = (s.content + " " + s.title).split(/\s+/).length;
-    return Math.max(4000, Math.min(15000, (words / 150) * 60000));
+    return Math.max(4000, Math.min(12000, (words / 150) * 60000));
   }, []);
 
   // ── Navigate to slide ──
@@ -37,24 +41,50 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
     [currentSlide, slides.length]
   );
 
-  // ── Advance to next slide ──
+  // ── Advance to next slide — ZERO delay for seamless flow ──
   const advanceToNext = useCallback(() => {
     if (currentSlide < slides.length - 1) {
-      setTimeout(() => goTo(currentSlide + 1), 400);
+      goTo(currentSlide + 1);
     } else {
       setIsPlaying(false);
       setShowOverlay(true);
+      setAudioProgress(0);
     }
   }, [currentSlide, slides.length, goTo]);
 
-  // ── Audio playback & auto-advance ──
+  // ── Track progress for both audio and reading slides ──
+  const startProgressTracking = useCallback((durationMs: number, isAudio: boolean) => {
+    if (progressInterval.current) clearInterval(progressInterval.current);
+
+    if (isAudio) {
+      // For audio: track via audio element timeupdate
+      progressInterval.current = setInterval(() => {
+        if (audioRef.current && audioRef.current.duration) {
+          setAudioProgress(audioRef.current.currentTime / audioRef.current.duration);
+        }
+      }, 100);
+    } else {
+      // For reading: track via elapsed time
+      readingStartTime.current = Date.now();
+      readingDuration.current = durationMs;
+      progressInterval.current = setInterval(() => {
+        const elapsed = Date.now() - readingStartTime.current;
+        setAudioProgress(Math.min(1, elapsed / readingDuration.current));
+      }, 50);
+    }
+  }, []);
+
+  // ── Audio playback & auto-advance — continuous narration ──
   useEffect(() => {
     // Cleanup previous
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
+      audioRef.current.onended = null;
     }
     if (readingTimer.current) clearTimeout(readingTimer.current);
+    if (progressInterval.current) clearInterval(progressInterval.current);
+    setAudioProgress(0);
 
     if (!isPlaying) return;
 
@@ -65,10 +95,13 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
 
       audio.onended = () => advanceToNext();
       audio.play().catch(() => console.log("Autoplay blocked"));
+
+      startProgressTracking(0, true);
     } else {
       audioRef.current = null;
-      // No audio → advance after reading time
-      readingTimer.current = setTimeout(() => advanceToNext(), getReadingMs(slide));
+      const duration = getReadingMs(slide);
+      startProgressTracking(duration, false);
+      readingTimer.current = setTimeout(() => advanceToNext(), duration);
     }
 
     return () => {
@@ -77,10 +110,11 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
         audioRef.current.onended = null;
       }
       if (readingTimer.current) clearTimeout(readingTimer.current);
+      if (progressInterval.current) clearInterval(progressInterval.current);
     };
-  }, [currentSlide, isPlaying, slide, advanceToNext, getReadingMs, isMuted]);
+  }, [currentSlide, isPlaying, slide, advanceToNext, getReadingMs, isMuted, startProgressTracking]);
 
-  // Sync mute state
+  // Sync mute
   useEffect(() => {
     if (audioRef.current) audioRef.current.muted = isMuted;
   }, [isMuted]);
@@ -88,7 +122,7 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
   // ── Auto-hide overlay ──
   useEffect(() => {
     if (isPlaying) {
-      hideTimer.current = setTimeout(() => setShowOverlay(false), 2500);
+      hideTimer.current = setTimeout(() => setShowOverlay(false), 3000);
     } else {
       setShowOverlay(true);
     }
@@ -101,7 +135,7 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
     setShowOverlay(true);
     if (hideTimer.current) clearTimeout(hideTimer.current);
     if (isPlaying) {
-      hideTimer.current = setTimeout(() => setShowOverlay(false), 2500);
+      hideTimer.current = setTimeout(() => setShowOverlay(false), 3000);
     }
   }, [isPlaying]);
 
@@ -110,15 +144,16 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
     if (isPlaying) {
       setIsPlaying(false);
       if (audioRef.current) audioRef.current.pause();
+      if (readingTimer.current) clearTimeout(readingTimer.current);
+      if (progressInterval.current) clearInterval(progressInterval.current);
     } else {
-      // If at the end, restart
-      if (currentSlide === slides.length - 1) {
+      if (currentSlide === slides.length - 1 && audioProgress >= 0.99) {
         setCurrentSlide(0);
         setDirection(-1);
       }
       setIsPlaying(true);
     }
-  }, [isPlaying, currentSlide, slides.length]);
+  }, [isPlaying, currentSlide, slides.length, audioProgress]);
 
   // ── Keyboard ──
   useEffect(() => {
@@ -142,27 +177,29 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
     return () => window.removeEventListener("keydown", handler);
   }, [isActive, togglePlay, goTo, currentSlide]);
 
-  const variants = {
-    enter: (d: number) => ({ opacity: 0, x: d > 0 ? 100 : -100 }),
-    center: { opacity: 1, x: 0 },
-    exit: (d: number) => ({ opacity: 0, x: d > 0 ? -100 : 100 }),
-  };
-
-  const progress = ((currentSlide + 1) / slides.length) * 100;
+  // ── Overall progress (slide-level + within-slide progress) ──
+  const overallProgress = ((currentSlide + audioProgress) / slides.length) * 100;
 
   return (
-    <div className="relative w-full h-full bg-background" onMouseMove={handleMouseMove}>
-      {/* ── Slide content ── */}
+    <div
+      className="relative w-full h-full bg-background"
+      onMouseMove={handleMouseMove}
+      onClick={() => {
+        if (isPlaying && !showOverlay) {
+          setShowOverlay(true);
+        }
+      }}
+    >
+      {/* ── Slide content with cinematic crossfade ── */}
       <div className="absolute inset-0">
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={currentSlide}
             custom={direction}
-            variants={variants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.4, ease: "easeInOut" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6, ease: "easeInOut" }}
             className="absolute inset-0"
           >
             <SlideContent slide={slide} isAutoPlaying={isPlaying} />
@@ -170,74 +207,112 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
         </AnimatePresence>
       </div>
 
-      {/* ── Big centered play button (when paused) ── */}
+      {/* ── Big centered play button (when paused & not started) ── */}
       <AnimatePresence>
         {!isPlaying && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.25 }}
             className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none"
           >
+            {/* Dim backdrop when paused */}
+            <div className="absolute inset-0 bg-background/30 backdrop-blur-[2px]" />
             <button
               onClick={togglePlay}
-              className="pointer-events-auto group flex items-center gap-3 px-8 py-4 rounded-2xl
+              className="pointer-events-auto relative z-10 group flex items-center gap-3 px-10 py-5 rounded-2xl
                 bg-primary/90 backdrop-blur-md text-primary-foreground
-                shadow-[0_0_40px_hsl(var(--primary)/0.4)]
-                hover:bg-primary hover:shadow-[0_0_60px_hsl(var(--primary)/0.6)]
+                shadow-[0_0_60px_hsl(var(--primary)/0.5)]
+                hover:bg-primary hover:shadow-[0_0_80px_hsl(var(--primary)/0.7)]
                 hover:scale-105 transition-all duration-300"
             >
-              <Play className="w-7 h-7 fill-current" />
-              <span className="text-lg font-semibold tracking-wide">
-                {currentSlide === 0 ? "Play Story" : "Resume"}
+              <Play className="w-8 h-8 fill-current" />
+              <span className="text-xl font-bold tracking-wide">
+                {currentSlide === 0 && audioProgress < 0.01 ? "Play Story" : "Resume"}
               </span>
             </button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Cinematic overlay controls (appear on hover) ── */}
+      {/* ── Netflix-style overlay controls (appear on hover/click) ── */}
       <AnimatePresence>
         {showOverlay && isPlaying && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.25 }}
             className="absolute inset-x-0 bottom-0 z-30"
           >
-            {/* Gradient fade at bottom */}
-            <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent pointer-events-none" />
 
-            <div className="relative px-6 pb-5 pt-12 space-y-3">
-              {/* Progress bar */}
+            <div className="relative px-6 pb-5 pt-16 space-y-2">
+              {/* Overall progress bar (clickable) */}
               <div
-                className="w-full h-1 bg-secondary/40 rounded-full cursor-pointer group"
+                className="w-full h-1.5 bg-secondary/30 rounded-full cursor-pointer group relative"
                 onClick={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
                   const pct = (e.clientX - rect.left) / rect.width;
-                  const idx = Math.round(pct * (slides.length - 1));
-                  goTo(idx);
+                  const idx = Math.floor(pct * slides.length);
+                  goTo(Math.min(idx, slides.length - 1));
                 }}
               >
+                {/* Slide markers */}
+                {slides.map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute top-0 w-px h-full bg-muted-foreground/20"
+                    style={{ left: `${(i / slides.length) * 100}%` }}
+                  />
+                ))}
                 <motion.div
-                  className="h-full bg-primary rounded-full group-hover:h-1.5 transition-all"
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.3 }}
-                />
+                  className="h-full bg-primary rounded-full relative"
+                  animate={{ width: `${overallProgress}%` }}
+                  transition={{ duration: 0.15, ease: "linear" }}
+                >
+                  {/* Scrubber dot */}
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary 
+                    shadow-[0_0_10px_hsl(var(--primary)/0.6)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                </motion.div>
               </div>
 
               {/* Controls row */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  {/* Skip back */}
                   <button
-                    onClick={togglePlay}
-                    className="flex items-center justify-center w-9 h-9 rounded-full bg-primary/20 
-                      hover:bg-primary/40 text-primary transition-colors"
+                    onClick={() => goTo(currentSlide - 1)}
+                    disabled={currentSlide === 0}
+                    className="flex items-center justify-center w-8 h-8 rounded-full 
+                      hover:bg-secondary/50 text-muted-foreground hover:text-foreground 
+                      transition-colors disabled:opacity-30"
                   >
-                    <Pause className="w-4 h-4" />
+                    <SkipBack className="w-4 h-4" />
                   </button>
 
+                  {/* Play/Pause */}
+                  <button
+                    onClick={togglePlay}
+                    className="flex items-center justify-center w-10 h-10 rounded-full 
+                      bg-primary/20 hover:bg-primary/40 text-primary transition-colors"
+                  >
+                    <Pause className="w-5 h-5" />
+                  </button>
+
+                  {/* Skip forward */}
+                  <button
+                    onClick={() => goTo(currentSlide + 1)}
+                    disabled={currentSlide === slides.length - 1}
+                    className="flex items-center justify-center w-8 h-8 rounded-full 
+                      hover:bg-secondary/50 text-muted-foreground hover:text-foreground 
+                      transition-colors disabled:opacity-30"
+                  >
+                    <SkipForward className="w-4 h-4" />
+                  </button>
+
+                  {/* Volume */}
                   <button
                     onClick={() => setIsMuted((m) => !m)}
                     className="flex items-center justify-center w-8 h-8 rounded-full 
@@ -247,22 +322,39 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
                   </button>
                 </div>
 
-                <span className="text-xs text-muted-foreground font-mono">
-                  {currentSlide + 1} / {slides.length}
-                </span>
+                {/* Slide info */}
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {currentSlide + 1} / {slides.length}
+                  </span>
+
+                  {/* Audio wave when playing audio */}
+                  {slide.audioUrl && !isMuted && (
+                    <div className="flex items-center gap-0.5">
+                      {[0, 1, 2, 3].map((i) => (
+                        <motion.div
+                          key={i}
+                          className="w-0.5 bg-primary rounded-full"
+                          animate={{ height: [2, 8, 2] }}
+                          transition={{ duration: 0.4, repeat: Infinity, delay: i * 0.08 }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Top progress line (always visible when playing) ── */}
-      {isPlaying && (
+      {/* ── Thin top progress line (always visible when playing) ── */}
+      {isPlaying && !showOverlay && (
         <div className="absolute top-0 left-0 right-0 z-40 h-0.5 bg-secondary/20">
           <motion.div
             className="h-full bg-primary"
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.4 }}
+            animate={{ width: `${overallProgress}%` }}
+            transition={{ duration: 0.15, ease: "linear" }}
           />
         </div>
       )}
