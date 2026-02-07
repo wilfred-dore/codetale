@@ -9,9 +9,10 @@ import { SlideMode } from "@/components/presentation/SlideMode";
 interface PresentationViewerProps {
   presentation: PresentationData;
   onNewStory: () => void;
+  onViewAnalysis?: () => void;
 }
 
-export function PresentationViewer({ presentation, onNewStory }: PresentationViewerProps) {
+export function PresentationViewer({ presentation, onNewStory, onViewAnalysis }: PresentationViewerProps) {
   const { slides, repoInfo } = presentation;
   const [viewMode, setViewMode] = useState<ViewMode | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -158,6 +159,7 @@ export function PresentationViewer({ presentation, onNewStory }: PresentationVie
               onDownloadHTML={handleDownloadHTML}
               isFullscreen={isFullscreen}
               onToggleFullscreen={toggleFullscreen}
+              onViewAnalysis={onViewAnalysis}
             />
 
             {/* Mode content */}

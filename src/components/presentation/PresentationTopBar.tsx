@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Clapperboard, LayoutDashboard, Download, Maximize, Minimize } from "lucide-react";
+import { Clapperboard, LayoutDashboard, Download, Maximize, Minimize, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { RepoInfo } from "@/types/presentation";
 import type { ViewMode } from "./ModeSelectionScreen";
@@ -12,6 +12,7 @@ interface PresentationTopBarProps {
   onDownloadHTML: () => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  onViewAnalysis?: () => void;
 }
 
 export function PresentationTopBar({
@@ -22,6 +23,7 @@ export function PresentationTopBar({
   onDownloadHTML,
   isFullscreen,
   onToggleFullscreen,
+  onViewAnalysis,
 }: PresentationTopBarProps) {
   return (
     <motion.div
@@ -80,6 +82,12 @@ export function PresentationTopBar({
 
       {/* Right: Actions */}
       <div className="flex items-center gap-1">
+        {onViewAnalysis && (
+          <Button variant="ghost" size="sm" onClick={onViewAnalysis} className="rounded-lg gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Analysis</span>
+          </Button>
+        )}
         <Button variant="ghost" size="sm" onClick={onDownloadHTML} className="rounded-lg">
           <Download className="w-3.5 h-3.5" />
         </Button>
