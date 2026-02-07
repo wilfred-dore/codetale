@@ -11,13 +11,16 @@ export interface RepoSection {
   items: RepoEntry[];
 }
 
-const featuredTools: RepoEntry[] = [
+const examples: RepoEntry[] = [
+  { name: "Apollo 11", url: "https://github.com/chrislgarry/Apollo-11", emoji: "🌕" },
+  { name: "MS-DOS", url: "https://github.com/microsoft/MS-DOS", emoji: "💾" },
+  { name: "The Algorithms", url: "https://github.com/TheAlgorithms/Python", emoji: "📊" },
+];
+
+const fromPartners: RepoEntry[] = [
   { name: "Lovable UI Kit", url: "https://github.com/lovable-dev/lovable-ui-kit", emoji: "💜" },
   { name: "fal.ai JS Client", url: "https://github.com/fal-ai/fal-js", emoji: "🎨" },
   { name: "Gradium Python", url: "https://github.com/gradium-ai/gradium-py", emoji: "🎙️" },
-];
-
-const partners: RepoEntry[] = [
   { name: "Alpic Skybridge", url: "https://github.com/alpic-ai/skybridge", emoji: "🚀" },
   { name: "Dify", url: "https://github.com/langgenius/dify", emoji: "🤖" },
   { name: "ZeroML", url: "https://github.com/zml/zml", emoji: "⚡" },
@@ -25,29 +28,17 @@ const partners: RepoEntry[] = [
   { name: "Dust", url: "https://github.com/dust-tt/dust", emoji: "✨" },
 ];
 
-const showcase: RepoEntry[] = [
-  { name: "Apollo 11", url: "https://github.com/chrislgarry/Apollo-11", emoji: "🌕" },
-  { name: "MS-DOS", url: "https://github.com/microsoft/MS-DOS", emoji: "💾" },
-  { name: "The Algorithms", url: "https://github.com/TheAlgorithms/Python", emoji: "📊" },
-];
-
 export const repoSections: RepoSection[] = [
   {
-    label: "⚡ Built with these amazing tools:",
+    label: "💡 Explore legendary codebases:",
     variant: "outline",
     size: "default",
-    items: featuredTools,
+    items: examples,
   },
   {
-    label: "🏆 Explore our hackathon partners:",
+    label: "🏆 From our hackathon partners:",
     variant: "ghost",
     size: "sm",
-    items: partners,
-  },
-  {
-    label: "💡 Or explore legendary codebases:",
-    variant: "ghost",
-    size: "sm",
-    items: showcase,
+    items: fromPartners,
   },
 ];
