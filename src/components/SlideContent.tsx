@@ -10,47 +10,30 @@ interface SlideContentProps {
   slide: GeneratedSlide;
 }
 
-const SLIDE_ICONS: Record<string, string> = {
-  hook: "🎯",
-  overview: "📖",
-  architecture: "🏗️",
-  features: "✨",
-  code: "⚙️",
-  impact: "🚀",
-};
-
 export function SlideContent({ slide }: SlideContentProps) {
+  const hasImage = !!slide.imageUrl;
+
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center px-6 md:px-12 py-8 overflow-y-auto">
-      {/* Background image */}
-      {slide.imageUrl && (
+      {/* Subtle background image wash */}
+      {hasImage && (
         <div className="absolute inset-0 z-0">
           <img
             src={slide.imageUrl}
             alt=""
-            className="w-full h-full object-cover opacity-40"
+            className="w-full h-full object-cover opacity-15 blur-sm"
             loading="lazy"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/50" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/90 to-background/70" />
         </div>
       )}
 
       <div className="relative z-10 max-w-3xl w-full space-y-6 text-center">
-        {/* Icon */}
-        <motion.div
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.1 }}
-          className="text-4xl md:text-5xl"
-        >
-          {SLIDE_ICONS[slide.type] || "📄"}
-        </motion.div>
-
         {/* Title */}
         <motion.h2
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
+          transition={{ delay: 0.1 }}
           className={`font-bold tracking-tight ${
             slide.type === "hook"
               ? "text-3xl md:text-5xl gradient-text"
@@ -59,6 +42,23 @@ export function SlideContent({ slide }: SlideContentProps) {
         >
           {slide.title}
         </motion.h2>
+
+        {/* Foreground image */}
+        {hasImage && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.15, duration: 0.4 }}
+            className="w-full max-w-2xl mx-auto rounded-xl overflow-hidden border border-white/10 shadow-2xl"
+          >
+            <img
+              src={slide.imageUrl}
+              alt={slide.visualDescription || slide.title}
+              className="w-full h-auto object-cover max-h-[280px] md:max-h-[320px]"
+              loading="lazy"
+            />
+          </motion.div>
+        )}
 
         {/* Mermaid diagram */}
         {slide.mermaidDiagram && (
