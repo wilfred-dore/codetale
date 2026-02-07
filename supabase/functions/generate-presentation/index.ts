@@ -220,22 +220,54 @@ async function generateSlides(
   language: string = "en",
   deepWikiContent: string = ""
 ): Promise<SlideData[]> {
-  // Prefer direct OpenAI API, fall back to Lovable AI gateway
+  // AI provider cascade: Lovable AI (gpt-5.2) → OpenAI Direct (gpt-4.1) → OpenAI Mini (gpt-4.1-mini)
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   
   if (!OPENAI_API_KEY && !LOVABLE_API_KEY) {
     throw new Error("Neither OPENAI_API_KEY nor LOVABLE_API_KEY is configured");
   }
-  
-  const useDirectOpenAI = !!OPENAI_API_KEY;
-  const aiEndpoint = useDirectOpenAI
-    ? "https://api.openai.com/v1/chat/completions"
-    : "https://ai.gateway.lovable.dev/v1/chat/completions";
-  const aiKey = useDirectOpenAI ? OPENAI_API_KEY! : LOVABLE_API_KEY!;
-  const aiModel = useDirectOpenAI ? "gpt-4.1" : "openai/gpt-5.2";
-  
-  console.log(`AI provider: ${useDirectOpenAI ? "OpenAI Direct (gpt-4.1)" : "Lovable AI (gpt-5.2)"}`);
+
+  interface AIProvider {
+    name: string;
+    endpoint: string;
+    key: string;
+    model: string;
+  }
+
+  const providers: AIProvider[] = [];
+
+  // Priority 1: Lovable AI (gpt-5.2) — best model
+  if (LOVABLE_API_KEY) {
+    providers.push({
+      name: "Lovable AI (gpt-5.2)",
+      endpoint: "https://ai.gateway.lovable.dev/v1/chat/completions",
+      key: LOVABLE_API_KEY,
+      model: "openai/gpt-5.2",
+    });
+  }
+
+  // Priority 2: OpenAI Direct (gpt-4.1)
+  if (OPENAI_API_KEY) {
+    providers.push({
+      name: "OpenAI Direct (gpt-4.1)",
+      endpoint: "https://api.openai.com/v1/chat/completions",
+      key: OPENAI_API_KEY,
+      model: "gpt-4.1",
+    });
+  }
+
+  // Priority 3: OpenAI Mini (gpt-4.1-mini) — cheapest fallback
+  if (OPENAI_API_KEY) {
+    providers.push({
+      name: "OpenAI Mini (gpt-4.1-mini)",
+      endpoint: "https://api.openai.com/v1/chat/completions",
+      key: OPENAI_API_KEY,
+      model: "gpt-4.1-mini",
+    });
+  }
+
+  console.log(`AI cascade: ${providers.map(p => p.name).join(" → ")}`);
 
   const languageGuide: Record<string, string> = {
     en: "Write ALL slide content and voice scripts in English.",
@@ -365,224 +397,209 @@ README (first 3000 chars):
 ${repoData.readme}
 ${deepWikiContent ? `\n\n=== DEEP WIKI ANALYSIS (AI-generated documentation from deepwiki.com) ===\nThis provides deeper architectural insights, component relationships, and design patterns:\n${deepWikiContent}` : ""}`;
 
-  console.log(`Calling AI (${aiModel}) for slide generation...`);
-
-  // Retry logic for transient AI errors
-  let lastAiError: Error | null = null;
-  for (let aiAttempt = 0; aiAttempt < 3; aiAttempt++) {
-    if (aiAttempt > 0) {
-      console.log(`AI retry attempt ${aiAttempt}...`);
-      await new Promise((r) => setTimeout(r, 2000 * aiAttempt));
-    }
-
-    const response = await fetch(
-      aiEndpoint,
+  // Build the tools/tool_choice payload (shared across all providers)
+  const toolsPayload = {
+    tools: [
       {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${aiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: aiModel,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          tools: [
-            {
-              type: "function",
-              function: {
-                name: "create_presentation",
-                description: "Create a 6-slide presentation from repository data",
-                parameters: {
+        type: "function",
+        function: {
+          name: "create_presentation",
+          description: "Create a 6-slide presentation from repository data",
+          parameters: {
+            type: "object",
+            properties: {
+              slides: {
+                type: "array",
+                items: {
                   type: "object",
                   properties: {
-                    slides: {
+                    title: { type: "string" },
+                    content: { type: "string" },
+                    visualDescription: { type: "string" },
+                    voiceScript: { type: "string" },
+                    type: {
+                      type: "string",
+                      enum: ["hook", "overview", "architecture", "features", "code", "impact", "data", "algorithm"],
+                    },
+                    mermaidDiagram: { type: "string" },
+                    stats: {
                       type: "array",
                       items: {
                         type: "object",
                         properties: {
-                          title: { type: "string" },
-                          content: { type: "string" },
-                          visualDescription: { type: "string" },
-                          voiceScript: { type: "string" },
-                          type: {
-                            type: "string",
-                            enum: [
-                              "hook",
-                              "overview",
-                              "architecture",
-                              "features",
-                              "code",
-                              "impact",
-                              "data",
-                              "algorithm",
-                            ],
-                          },
-                          mermaidDiagram: { type: "string" },
-                          stats: {
-                            type: "array",
-                            items: {
-                              type: "object",
-                              properties: {
-                                label: { type: "string" },
-                                value: { type: "number" },
-                                suffix: { type: "string" },
-                                prefix: { type: "string" },
-                              },
-                              required: ["label", "value"],
-                            },
-                          },
-                          repoMediaUrls: {
-                            type: "array",
-                            description: "Relevant media URLs from the repository. Only include genuinely relevant URLs. Max 2.",
-                            items: { type: "string" },
-                          },
-                          chartConfig: {
-                            type: "object",
-                            description: "Chart visualization for data/metrics slides. Use real data from the repo.",
-                            properties: {
-                              type: { type: "string", enum: ["bar", "line", "pie", "radar", "area"] },
-                              title: { type: "string" },
-                              data: {
-                                type: "array",
-                                items: {
-                                  type: "object",
-                                  properties: {
-                                    name: { type: "string" },
-                                    value: { type: "number" },
-                                  },
-                                  required: ["name", "value"],
-                                },
-                              },
-                              series: { type: "array", items: { type: "string" } },
-                              xAxisLabel: { type: "string" },
-                              yAxisLabel: { type: "string" },
-                            },
-                            required: ["type", "title", "data"],
-                          },
-                          codeAnimation: {
-                            type: "object",
-                            description: "Step-by-step code walkthrough animation for algorithm slides.",
-                            properties: {
-                              code: { type: "string" },
-                              language: { type: "string" },
-                              steps: {
-                                type: "array",
-                                items: {
-                                  type: "object",
-                                  properties: {
-                                    lines: { type: "array", items: { type: "number" } },
-                                    explanation: { type: "string" },
-                                  },
-                                  required: ["lines", "explanation"],
-                                },
-                              },
-                            },
-                            required: ["code", "language", "steps"],
-                          },
-                          dataStructureAnimation: {
-                            type: "object",
-                            description: "Data structure visualization with step-by-step state changes.",
-                            properties: {
-                              type: { type: "string", enum: ["array", "tree", "graph", "stack", "queue", "linked-list"] },
-                              steps: {
-                                type: "array",
-                                items: {
-                                  type: "object",
-                                  properties: {
-                                    nodes: {
-                                      type: "array",
-                                      items: {
-                                        type: "object",
-                                        properties: {
-                                          id: { type: "string" },
-                                          label: { type: "string" },
-                                          highlight: { type: "boolean" },
-                                        },
-                                        required: ["id", "label"],
-                                      },
-                                    },
-                                    edges: {
-                                      type: "array",
-                                      items: {
-                                        type: "object",
-                                        properties: {
-                                          from: { type: "string" },
-                                          to: { type: "string" },
-                                          label: { type: "string" },
-                                        },
-                                        required: ["from", "to"],
-                                      },
-                                    },
-                                    caption: { type: "string" },
-                                  },
-                                  required: ["nodes", "caption"],
-                                },
-                              },
-                            },
-                            required: ["type", "steps"],
-                          },
+                          label: { type: "string" },
+                          value: { type: "number" },
+                          suffix: { type: "string" },
+                          prefix: { type: "string" },
                         },
-                        required: [
-                          "title",
-                          "content",
-                          "visualDescription",
-                          "voiceScript",
-                          "type",
-                        ],
-                        additionalProperties: false,
+                        required: ["label", "value"],
                       },
                     },
+                    repoMediaUrls: {
+                      type: "array",
+                      description: "Relevant media URLs from the repository. Only include genuinely relevant URLs. Max 2.",
+                      items: { type: "string" },
+                    },
+                    chartConfig: {
+                      type: "object",
+                      description: "Chart visualization for data/metrics slides. Use real data from the repo.",
+                      properties: {
+                        type: { type: "string", enum: ["bar", "line", "pie", "radar", "area"] },
+                        title: { type: "string" },
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: { name: { type: "string" }, value: { type: "number" } },
+                            required: ["name", "value"],
+                          },
+                        },
+                        series: { type: "array", items: { type: "string" } },
+                        xAxisLabel: { type: "string" },
+                        yAxisLabel: { type: "string" },
+                      },
+                      required: ["type", "title", "data"],
+                    },
+                    codeAnimation: {
+                      type: "object",
+                      description: "Step-by-step code walkthrough animation for algorithm slides.",
+                      properties: {
+                        code: { type: "string" },
+                        language: { type: "string" },
+                        steps: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              lines: { type: "array", items: { type: "number" } },
+                              explanation: { type: "string" },
+                            },
+                            required: ["lines", "explanation"],
+                          },
+                        },
+                      },
+                      required: ["code", "language", "steps"],
+                    },
+                    dataStructureAnimation: {
+                      type: "object",
+                      description: "Data structure visualization with step-by-step state changes.",
+                      properties: {
+                        type: { type: "string", enum: ["array", "tree", "graph", "stack", "queue", "linked-list"] },
+                        steps: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              nodes: {
+                                type: "array",
+                                items: {
+                                  type: "object",
+                                  properties: { id: { type: "string" }, label: { type: "string" }, highlight: { type: "boolean" } },
+                                  required: ["id", "label"],
+                                },
+                              },
+                              edges: {
+                                type: "array",
+                                items: {
+                                  type: "object",
+                                  properties: { from: { type: "string" }, to: { type: "string" }, label: { type: "string" } },
+                                  required: ["from", "to"],
+                                },
+                              },
+                              caption: { type: "string" },
+                            },
+                            required: ["nodes", "caption"],
+                          },
+                        },
+                      },
+                      required: ["type", "steps"],
+                    },
                   },
-                  required: ["slides"],
+                  required: ["title", "content", "visualDescription", "voiceScript", "type"],
                   additionalProperties: false,
                 },
               },
             },
-          ],
-          tool_choice: {
-            type: "function",
-            function: { name: "create_presentation" },
+            required: ["slides"],
+            additionalProperties: false,
           },
-        }),
-      }
-    );
+        },
+      },
+    ],
+    tool_choice: { type: "function", function: { name: "create_presentation" } },
+  };
 
-    if (!response.ok) {
-      const errText = await response.text();
-      const provider = useDirectOpenAI ? "OpenAI" : "Lovable AI";
-      console.error(`${provider} error (attempt ${aiAttempt + 1}):`, response.status, errText);
-      if (response.status === 429) {
-        throw new Error(`${provider} rate limit exceeded. Please try again in a moment.`);
+  // ── Cascade through providers ──
+  let lastError: Error | null = null;
+
+  for (let pi = 0; pi < providers.length; pi++) {
+    const provider = providers[pi];
+    console.log(`\n► Trying provider ${pi + 1}/${providers.length}: ${provider.name}`);
+
+    // Each provider gets 2 retry attempts
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) {
+        console.log(`  Retry attempt ${attempt} for ${provider.name}...`);
+        await new Promise((r) => setTimeout(r, 2000 * attempt));
       }
-      if (response.status === 402) {
-        throw new Error(`${provider} payment required. Please check your API credits.`);
+
+      try {
+        const response = await fetch(provider.endpoint, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${provider.key}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: provider.model,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            ...toolsPayload,
+          }),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          console.error(`  ${provider.name} error (attempt ${attempt + 1}):`, response.status, errText);
+
+          // Fatal for this provider — move to next provider immediately
+          if (response.status === 402 || response.status === 401) {
+            console.warn(`  ${provider.name} auth/payment issue, cascading to next provider...`);
+            lastError = new Error(`${provider.name}: ${response.status === 402 ? "credits exhausted" : "auth failed"}`);
+            break; // Skip retries, go to next provider
+          }
+          if (response.status === 429) {
+            lastError = new Error(`${provider.name} rate limited`);
+            continue; // Retry same provider
+          }
+          lastError = new Error(`${provider.name} failed: ${response.status}`);
+          continue; // Retry same provider
+        }
+
+        const data = await response.json();
+        console.log(`  ${provider.name} response received ✓`);
+
+        const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+        if (!toolCall) {
+          console.error(`  No tool call in response:`, JSON.stringify(data).substring(0, 500));
+          lastError = new Error(`${provider.name} did not return structured data`);
+          continue; // Retry same provider
+        }
+
+        const parsed = JSON.parse(toolCall.function.arguments);
+        console.log(`  ✅ Generated ${parsed.slides.length} slides with ${provider.name}`);
+        return parsed.slides;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        console.error(`  ${provider.name} exception (attempt ${attempt + 1}):`, lastError.message);
+        continue;
       }
-      if (response.status === 401) {
-        throw new Error(`${provider} authentication failed. Please check your API key.`);
-      }
-      lastAiError = new Error(`${provider} generation failed: ${response.status}`);
-      continue;
     }
-
-    const data = await response.json();
-    console.log("AI response received");
-
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) {
-      console.error(`No tool call in AI response (attempt ${aiAttempt + 1}):`, JSON.stringify(data).substring(0, 500));
-      lastAiError = new Error("AI did not return structured slide data");
-      continue;
-    }
-
-    const parsed = JSON.parse(toolCall.function.arguments);
-    console.log(`Generated ${parsed.slides.length} slides`);
-    return parsed.slides;
   }
 
-  throw lastAiError || new Error("AI generation failed after 3 attempts");
+  throw lastError || new Error("All AI providers failed");
 }
 
 // ─── fal.ai Image Generation ──────────────────────────────────────────────────
