@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Download, RotateCcw, FileDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, RotateCcw, FileDown, Maximize, Minimize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { SlideContent } from "@/components/SlideContent";
@@ -16,6 +16,8 @@ export function PresentationViewer({ presentation, onNewStory }: PresentationVie
   const [currentSlide, setCurrentSlide] = useState(0);
   const [direction, setDirection] = useState(0);
   const [autoAdvance, setAutoAdvance] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const slide = slides[currentSlide];
 
@@ -42,6 +44,35 @@ export function PresentationViewer({ presentation, onNewStory }: PresentationVie
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [currentSlide, goTo]);
+
+  // Fullscreen toggle
+  const toggleFullscreen = useCallback(() => {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  }, []);
+
+  // Sync fullscreen state
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
+  // Escape exits fullscreen
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [toggleFullscreen]);
 
   const handleAudioEnded = useCallback(() => {
     if (autoAdvance && currentSlide < slides.length - 1) {
@@ -134,16 +165,23 @@ export function PresentationViewer({ presentation, onNewStory }: PresentationVie
 
   return (
     <motion.div
+      ref={containerRef}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex flex-col h-full min-h-[80vh] max-w-6xl mx-auto w-full gap-4"
+      className={`flex flex-col w-full gap-3 ${
+        isFullscreen
+          ? "h-screen bg-background p-4"
+          : "h-full min-h-[80vh] max-w-6xl mx-auto"
+      }`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-2 flex-wrap gap-2">
-        <Button variant="glass" size="sm" onClick={onNewStory} className="rounded-lg">
-          <RotateCcw className="w-4 h-4 mr-2" />
-          New Story
-        </Button>
+      <div className="flex items-center justify-between px-2 flex-wrap gap-2 shrink-0">
+        {!isFullscreen && (
+          <Button variant="glass" size="sm" onClick={onNewStory} className="rounded-lg">
+            <RotateCcw className="w-4 h-4 mr-2" />
+            New Story
+          </Button>
+        )}
 
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-foreground truncate max-w-[200px]">
@@ -160,19 +198,30 @@ export function PresentationViewer({ presentation, onNewStory }: PresentationVie
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="glass" size="sm" onClick={handleDownloadHTML} className="rounded-lg">
-            <Download className="w-4 h-4 mr-2" />
-            HTML
-          </Button>
-          <Button variant="glass" size="sm" onClick={handlePrint} className="rounded-lg">
-            <FileDown className="w-4 h-4 mr-2" />
-            PDF
+          {!isFullscreen && (
+            <>
+              <Button variant="glass" size="sm" onClick={handleDownloadHTML} className="rounded-lg">
+                <Download className="w-4 h-4 mr-2" />
+                HTML
+              </Button>
+              <Button variant="glass" size="sm" onClick={handlePrint} className="rounded-lg">
+                <FileDown className="w-4 h-4 mr-2" />
+                PDF
+              </Button>
+            </>
+          )}
+          <Button variant="glass" size="sm" onClick={toggleFullscreen} className="rounded-lg">
+            {isFullscreen ? (
+              <Minimize className="w-4 h-4" />
+            ) : (
+              <Maximize className="w-4 h-4" />
+            )}
           </Button>
         </div>
       </div>
 
       {/* Progress bar */}
-      <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
+      <div className="w-full h-1 bg-secondary rounded-full overflow-hidden shrink-0">
         <motion.div
           className="h-full bg-primary rounded-full"
           animate={{ width: `${((currentSlide + 1) / slides.length) * 100}%` }}
@@ -181,7 +230,7 @@ export function PresentationViewer({ presentation, onNewStory }: PresentationVie
       </div>
 
       {/* Slide Area */}
-      <div className="flex-1 relative rounded-2xl overflow-hidden glass min-h-[50vh]">
+      <div className="flex-1 relative rounded-2xl overflow-hidden glass min-h-0">
         <div className="absolute inset-0 dot-grid opacity-20" />
 
         <AnimatePresence mode="wait" custom={direction}>
@@ -201,7 +250,7 @@ export function PresentationViewer({ presentation, onNewStory }: PresentationVie
       </div>
 
       {/* Controls */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2 shrink-0">
         {/* Audio */}
         <AudioPlayer
           src={slide.audioUrl || undefined}
