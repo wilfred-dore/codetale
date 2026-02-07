@@ -12,7 +12,7 @@ export type GenerationStep =
   | "error";
 
 interface UseGeneratePresentationReturn {
-  generate: (githubUrl: string, mode: string, language?: string) => Promise<void>;
+  generate: (githubUrl: string, mode: string, language?: string) => Promise<PresentationData | null>;
   isLoading: boolean;
   step: GenerationStep;
   error: string | null;
@@ -44,7 +44,7 @@ export function useGeneratePresentation(): UseGeneratePresentationReturn {
     setData(null);
   }, [clearTimers]);
 
-  const generate = useCallback(async (githubUrl: string, mode: string, language: string = "en") => {
+  const generate = useCallback(async (githubUrl: string, mode: string, language: string = "en"): Promise<PresentationData | null> => {
     // Invalidate previous generation and reset state
     generationIdRef.current += 1;
     const currentId = generationIdRef.current;
@@ -79,7 +79,7 @@ export function useGeneratePresentation(): UseGeneratePresentationReturn {
       // Ignore result if a newer generation was started or reset was called
       if (generationIdRef.current !== currentId) {
         console.log("Ignoring stale generation result");
-        return;
+        return null;
       }
 
       clearTimers();
@@ -92,15 +92,18 @@ export function useGeneratePresentation(): UseGeneratePresentationReturn {
         throw new Error(result.error);
       }
 
-      setData(result as PresentationData);
+      const presentation = result as PresentationData;
+      setData(presentation);
       setStep("complete");
+      return presentation;
     } catch (err) {
-      if (generationIdRef.current !== currentId) return;
+      if (generationIdRef.current !== currentId) return null;
       clearTimers();
       const message = err instanceof Error ? err.message : "An unexpected error occurred";
       console.error("Generation error:", message);
       setError(message);
       setStep("error");
+      return null;
     } finally {
       if (generationIdRef.current === currentId) {
         setIsLoading(false);
