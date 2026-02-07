@@ -10,9 +10,10 @@ import { SlideMediaIndicator } from "@/components/SlideMediaIndicator";
 interface SlideContentProps {
   slide: GeneratedSlide;
   isAutoPlaying?: boolean;
+  hideMediaIndicator?: boolean;
 }
 
-export function SlideContent({ slide, isAutoPlaying = false }: SlideContentProps) {
+export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator = false }: SlideContentProps) {
   const hasImage = !!slide.imageUrl;
 
   return (
@@ -31,10 +32,12 @@ export function SlideContent({ slide, isAutoPlaying = false }: SlideContentProps
       )}
 
       <div className="relative z-10 max-w-3xl w-full space-y-3 text-center py-2">
-        {/* Media indicator */}
-        <div className="flex justify-center">
-          <SlideMediaIndicator hasAudio={!!slide.audioUrl} isAutoPlaying={isAutoPlaying} />
-        </div>
+        {/* Media indicator (hidden in cinema mode) */}
+        {!hideMediaIndicator && (
+          <div className="flex justify-center">
+            <SlideMediaIndicator hasAudio={!!slide.audioUrl} isAutoPlaying={isAutoPlaying} />
+          </div>
+        )}
 
         {/* Title */}
         <motion.h2
