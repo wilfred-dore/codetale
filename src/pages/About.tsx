@@ -338,7 +338,10 @@ export default function About() {
       {/* Footer */}
       <footer className="py-8 px-6 border-t border-border/50">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <p>Built for Paris AI Hackathon 2026</p>
+          <div>
+            <p>Built for Paris AI Hackathon 2026</p>
+            <p className="text-muted-foreground/70">Wilfred Doré</p>
+          </div>
           <Link to="/" className="text-primary hover:underline">
             Back to Home
           </Link>
