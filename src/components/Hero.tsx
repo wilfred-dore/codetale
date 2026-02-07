@@ -1,5 +1,12 @@
 import { motion } from "framer-motion";
-import { BookOpen, Code2, Zap } from "lucide-react";
+import { BookOpen, Code2 } from "lucide-react";
+
+const partners = [
+  { name: "OpenAI", url: "https://openai.com" },
+  { name: "Lovable", url: "https://lovable.dev" },
+  { name: "fal.ai", url: "https://fal.ai" },
+  { name: "Gradium", url: "https://gradium.ai" },
+];
 
 export function Hero() {
   return (
@@ -8,11 +15,25 @@ export function Hero() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="flex items-center justify-center gap-3 mb-2"
+        className="flex items-center justify-center gap-2 mb-2"
       >
-        <div className="flex items-center gap-1.5 text-muted-foreground text-sm font-mono glass-subtle px-3 py-1.5 rounded-full">
-          <Zap className="w-3.5 h-3.5 text-primary" />
-          <span>Powered by AI</span>
+        <div className="flex items-center gap-2 text-muted-foreground text-xs font-mono glass-subtle px-3 py-1.5 rounded-full flex-wrap justify-center">
+          <span className="text-muted-foreground/70">Powered by</span>
+          {partners.map((p, i) => (
+            <span key={p.name} className="flex items-center gap-1">
+              <a
+                href={p.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:text-primary/80 transition-colors font-semibold"
+              >
+                {p.name}
+              </a>
+              {i < partners.length - 1 && (
+                <span className="text-muted-foreground/30">·</span>
+              )}
+            </span>
+          ))}
         </div>
       </motion.div>
 
