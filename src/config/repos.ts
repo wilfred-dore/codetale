@@ -14,7 +14,8 @@ export interface RepoSection {
 const examples: RepoEntry[] = [
   { name: "Apollo 11", url: "https://github.com/chrislgarry/Apollo-11", emoji: "🌕" },
   { name: "MS-DOS", url: "https://github.com/microsoft/MS-DOS", emoji: "💾" },
-  { name: "The Algorithms", url: "https://github.com/TheAlgorithms/Python", emoji: "📊" },
+  { name: "Sorting Algorithms", url: "https://github.com/diptangsu/Sorting-Algorithms", emoji: "📊" },
+  { name: "Data Science Olympics", url: "https://github.com/aromain/data-science-olympics-2019", emoji: "🏅" },
 ];
 
 const fromPartners: RepoEntry[] = [
