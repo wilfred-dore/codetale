@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Info } from "lucide-react";
+import { Info, Code2 } from "lucide-react";
 import { Hero } from "@/components/Hero";
 import { URLInput } from "@/components/URLInput";
 import { ModeSelector, type PresentationMode } from "@/components/ModeSelector";
@@ -175,11 +175,18 @@ const Index = () => {
           </div>
           <div className="flex items-center gap-4">
             <Link
+              to="/api-docs"
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Code2 className="w-4 h-4" />
+              <span className="hidden sm:inline">API</span>
+            </Link>
+            <Link
               to="/about"
               className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <Info className="w-4 h-4" />
-              <span className="hidden sm:inline">What is CodeTale?</span>
+              <span className="hidden sm:inline">About</span>
             </Link>
             <span className="text-xs font-mono text-muted-foreground glass-subtle px-3 py-1 rounded-full">
               {"{Tech: Europe}"} Paris 2026
