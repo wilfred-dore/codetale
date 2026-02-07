@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Info } from "lucide-react";
@@ -36,26 +36,15 @@ const Index = () => {
     if (!isValidUrl) return;
     setState("loading");
 
-    try {
-      await generate(url, mode, language);
-    } catch (err) {
-      console.error("Generation failed:", err);
-    }
-  }, [isValidUrl, url, mode, language, generate]);
-
-  // Transition to presentation when generation completes
-  useEffect(() => {
-    if (state === "loading" && data && step === "complete") {
+    const result = await generate(url, mode, language);
+    
+    // Directly transition based on return value — no useEffect needed
+    if (result) {
       setState("presentation");
     }
-  }, [state, data, step]);
-
-  // Transition back to input on error
-  useEffect(() => {
-    if (state === "loading" && step === "error") {
-      // Keep loading state so LoadingState can show the error + retry
-    }
-  }, [state, step]);
+    // If result is null, either an error occurred (shown by LoadingState)
+    // or the generation was canceled/stale (reset already handled state)
+  }, [isValidUrl, url, mode, language, generate]);
 
   const handleReset = useCallback(() => {
     setState("input");
