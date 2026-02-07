@@ -66,12 +66,12 @@ export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.15, duration: 0.4 }}
-            className="w-full max-w-2xl mx-auto rounded-xl overflow-hidden border border-white/10 shadow-2xl"
+            className="w-full max-w-2xl mx-auto rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-black/20"
           >
             <img
               src={slide.imageUrl}
               alt={slide.visualDescription || slide.title}
-              className="w-full h-auto object-cover max-h-[200px] md:max-h-[260px]"
+              className="w-full h-auto object-contain max-h-[280px] md:max-h-[360px]"
               loading="lazy"
             />
           </motion.div>
@@ -103,7 +103,7 @@ export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator 
                     {isVideo ? (
                       <video
                         src={url}
-                        className="w-full h-auto max-h-[120px] object-cover"
+                        className="w-full h-auto max-h-[200px] object-contain bg-black/20"
                         muted
                         autoPlay
                         loop
@@ -113,7 +113,7 @@ export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator 
                       <img
                         src={url}
                         alt={`Repository media ${i + 1}`}
-                        className="w-full h-auto max-h-[120px] object-cover"
+                        className="w-full h-auto max-h-[200px] object-contain bg-black/20"
                         loading="lazy"
                         onError={(e) => {
                           // Hide broken images
