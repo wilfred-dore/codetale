@@ -31,7 +31,7 @@ const fromPartners: RepoEntry[] = [
 
 export const repoSections: RepoSection[] = [
   {
-    label: "💡 Explore legendary codebases:",
+    label: "Explore existing codebases:",
     variant: "outline",
     size: "default",
     items: examples,
