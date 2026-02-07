@@ -1,31 +1,78 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Play, Pause, Volume2, VolumeX } from "lucide-react";
 
-export function AudioPlayer() {
+interface AudioPlayerProps {
+  src?: string;
+  autoPlay?: boolean;
+  onEnded?: () => void;
+}
+
+export function AudioPlayer({ src, autoPlay = false, onEnded }: AudioPlayerProps) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [progress, setProgress] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
 
+  // Reset state when src changes
   useEffect(() => {
-    if (isPlaying) {
-      intervalRef.current = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 100) {
-            setIsPlaying(false);
-            return 0;
-          }
-          return prev + 0.5;
-        });
-      }, 100);
-    } else if (intervalRef.current) {
-      clearInterval(intervalRef.current);
+    setIsPlaying(false);
+    setProgress(0);
+    setCurrentTime(0);
+    setDuration(0);
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
     }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isPlaying]);
+  }, [src]);
+
+  // Auto-play when src changes and autoPlay is true
+  useEffect(() => {
+    if (src && autoPlay && audioRef.current) {
+      const timer = setTimeout(() => {
+        audioRef.current?.play().catch(() => {
+          // Autoplay blocked by browser
+          console.log("Autoplay blocked by browser policy");
+        });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [src, autoPlay]);
+
+  const togglePlay = useCallback(() => {
+    if (!audioRef.current || !src) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play().catch(console.error);
+    }
+  }, [isPlaying, src]);
+
+  const toggleMute = useCallback(() => {
+    if (!audioRef.current) return;
+    audioRef.current.muted = !isMuted;
+    setIsMuted(!isMuted);
+  }, [isMuted]);
+
+  const handleSeek = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!audioRef.current || !duration) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const pct = (e.clientX - rect.left) / rect.width;
+      audioRef.current.currentTime = pct * duration;
+    },
+    [duration]
+  );
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
   return (
     <motion.div
@@ -33,9 +80,33 @@ export function AudioPlayer() {
       animate={{ opacity: 1, y: 0 }}
       className="flex items-center gap-3 glass rounded-xl px-4 py-3"
     >
+      {src && (
+        <audio
+          ref={audioRef}
+          src={src}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onEnded={() => {
+            setIsPlaying(false);
+            setProgress(0);
+            onEnded?.();
+          }}
+          onLoadedMetadata={(e) => {
+            setDuration(e.currentTarget.duration);
+          }}
+          onTimeUpdate={(e) => {
+            const ct = e.currentTarget.currentTime;
+            const dur = e.currentTarget.duration;
+            setCurrentTime(ct);
+            setProgress(dur > 0 ? (ct / dur) * 100 : 0);
+          }}
+        />
+      )}
+
       <button
-        onClick={() => setIsPlaying(!isPlaying)}
-        className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-foreground hover:brightness-110 transition-all"
+        onClick={togglePlay}
+        disabled={!src}
+        className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-foreground hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {isPlaying ? (
           <Pause className="w-4 h-4" />
@@ -44,20 +115,22 @@ export function AudioPlayer() {
         )}
       </button>
 
-      <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden cursor-pointer">
+      <div
+        className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden cursor-pointer"
+        onClick={handleSeek}
+      >
         <motion.div
           className="h-full bg-primary/70 rounded-full"
-          animate={{ width: `${progress}%` }}
-          transition={{ duration: 0.1 }}
+          style={{ width: `${progress}%` }}
         />
       </div>
 
-      <span className="text-xs text-muted-foreground font-mono min-w-[40px]">
-        {formatTime(progress)}
+      <span className="text-xs text-muted-foreground font-mono min-w-[72px] text-right">
+        {formatTime(currentTime)} / {formatTime(duration)}
       </span>
 
       <button
-        onClick={() => setIsMuted(!isMuted)}
+        onClick={toggleMute}
         className="text-muted-foreground hover:text-foreground transition-colors"
       >
         {isMuted ? (
@@ -68,11 +141,4 @@ export function AudioPlayer() {
       </button>
     </motion.div>
   );
-}
-
-function formatTime(progress: number): string {
-  const totalSeconds = Math.floor((progress / 100) * 180);
-  const mins = Math.floor(totalSeconds / 60);
-  const secs = totalSeconds % 60;
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }

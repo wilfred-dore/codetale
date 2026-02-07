@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Hero } from "@/components/Hero";
 import { URLInput } from "@/components/URLInput";
@@ -6,7 +6,8 @@ import { ModeSelector, type PresentationMode } from "@/components/ModeSelector";
 import { GenerateButton } from "@/components/GenerateButton";
 import { LoadingState } from "@/components/LoadingState";
 import { PresentationViewer } from "@/components/PresentationViewer";
-import { mockPresentation } from "@/data/mockPresentation";
+import { useGeneratePresentation } from "@/hooks/useGeneratePresentation";
+import { toast } from "@/hooks/use-toast";
 
 type AppState = "input" | "loading" | "presentation";
 
@@ -15,18 +16,49 @@ const Index = () => {
   const [url, setUrl] = useState("");
   const [mode, setMode] = useState<PresentationMode>("developer");
 
+  const { generate, isLoading, step, error, data, reset } = useGeneratePresentation();
+
   const GITHUB_URL_REGEX = /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+\/?$/;
   const isValidUrl = GITHUB_URL_REGEX.test(url);
 
-  const handleGenerate = () => {
+  const handleGenerate = useCallback(async () => {
     if (!isValidUrl) return;
     setState("loading");
-  };
 
-  const handleReset = () => {
+    try {
+      await generate(url, mode);
+    } catch (err) {
+      console.error("Generation failed:", err);
+    }
+  }, [isValidUrl, url, mode, generate]);
+
+  // Transition to presentation when data arrives
+  const handleDataReady = useCallback(() => {
+    if (data && step === "complete") {
+      setState("presentation");
+    }
+  }, [data, step]);
+
+  // Watch for completion
+  if (state === "loading" && data && step === "complete") {
+    // Use setTimeout to avoid state update during render
+    setTimeout(() => setState("presentation"), 100);
+  }
+
+  const handleReset = useCallback(() => {
     setState("input");
     setUrl("");
-  };
+    reset();
+  }, [reset]);
+
+  const handleRetry = useCallback(() => {
+    handleGenerate();
+  }, [handleGenerate]);
+
+  const handleCancel = useCallback(() => {
+    setState("input");
+    reset();
+  }, [reset]);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -39,7 +71,7 @@ const Index = () => {
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Nav */}
         <header className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={handleReset}>
             <span className="text-xl">📖</span>
             <span className="font-display font-bold text-lg text-foreground tracking-tight">
               CodeTale
@@ -87,11 +119,16 @@ const Index = () => {
                 exit={{ opacity: 0 }}
                 className="w-full"
               >
-                <LoadingState onComplete={() => setState("presentation")} />
+                <LoadingState
+                  step={step}
+                  error={error}
+                  onRetry={handleRetry}
+                  onCancel={handleCancel}
+                />
               </motion.div>
             )}
 
-            {state === "presentation" && (
+            {state === "presentation" && data && (
               <motion.div
                 key="presentation"
                 initial={{ opacity: 0, scale: 0.98 }}
@@ -101,7 +138,7 @@ const Index = () => {
                 className="w-full h-full"
               >
                 <PresentationViewer
-                  slides={mockPresentation}
+                  presentation={data}
                   onNewStory={handleReset}
                 />
               </motion.div>
