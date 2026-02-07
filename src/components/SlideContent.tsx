@@ -5,12 +5,14 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
 import type { GeneratedSlide } from "@/types/presentation";
 import { motion } from "framer-motion";
+import { SlideMediaIndicator } from "@/components/SlideMediaIndicator";
 
 interface SlideContentProps {
   slide: GeneratedSlide;
+  isAutoPlaying?: boolean;
 }
 
-export function SlideContent({ slide }: SlideContentProps) {
+export function SlideContent({ slide, isAutoPlaying = false }: SlideContentProps) {
   const hasImage = !!slide.imageUrl;
 
   return (
@@ -29,6 +31,11 @@ export function SlideContent({ slide }: SlideContentProps) {
       )}
 
       <div className="relative z-10 max-w-3xl w-full space-y-3 text-center py-2">
+        {/* Media indicator */}
+        <div className="flex justify-center">
+          <SlideMediaIndicator hasAudio={!!slide.audioUrl} isAutoPlaying={isAutoPlaying} />
+        </div>
+
         {/* Title */}
         <motion.h2
           initial={{ opacity: 0, y: 10 }}

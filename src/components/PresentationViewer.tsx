@@ -43,6 +43,24 @@ export function PresentationViewer({ presentation, onNewStory }: PresentationVie
     [currentSlide, slides.length]
   );
 
+  // ── Estimate reading time for slides without audio ──
+  const getReadingDuration = useCallback((s: typeof slide) => {
+    const wordCount = (s.content + " " + s.title).split(/\s+/).length;
+    // ~150 words per minute, min 4s, max 15s
+    const seconds = Math.max(4, Math.min(15, (wordCount / 150) * 60));
+    return seconds * 1000;
+  }, []);
+
+  // ── Advance to next slide (used by both audio-end and reading timer) ──
+  const advanceToNext = useCallback(() => {
+    if (currentSlide < slides.length - 1) {
+      setTimeout(() => goTo(currentSlide + 1), 600);
+    } else {
+      setIsAutoPlaying(false);
+      setShowControls(true);
+    }
+  }, [currentSlide, slides.length, goTo]);
+
   // ── Audio playback tied to current slide ──
   useEffect(() => {
     if (audioRef.current) {
@@ -55,18 +73,22 @@ export function PresentationViewer({ presentation, onNewStory }: PresentationVie
       audioRef.current = audio;
 
       audio.onended = () => {
-        if (isAutoPlaying && currentSlide < slides.length - 1) {
-          setTimeout(() => goTo(currentSlide + 1), 600);
-        } else if (currentSlide === slides.length - 1) {
-          setIsAutoPlaying(false);
-          setShowControls(true);
-        }
+        if (isAutoPlaying) advanceToNext();
       };
 
       if (isAutoPlaying) {
         audio.play().catch(() => {
           console.log("Autoplay blocked by browser");
         });
+      }
+    } else {
+      audioRef.current = null;
+
+      // No audio → auto-advance after reading timer
+      if (isAutoPlaying) {
+        const duration = getReadingDuration(slide);
+        const timer = setTimeout(() => advanceToNext(), duration);
+        return () => clearTimeout(timer);
       }
     }
 
@@ -76,21 +98,16 @@ export function PresentationViewer({ presentation, onNewStory }: PresentationVie
         audioRef.current.onended = null;
       }
     };
-  }, [currentSlide, slide.audioUrl]);
+  }, [currentSlide, slide.audioUrl, isAutoPlaying, advanceToNext, getReadingDuration, slide]);
 
   // Update audio onended when isAutoPlaying changes
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.onended = () => {
-        if (isAutoPlaying && currentSlide < slides.length - 1) {
-          setTimeout(() => goTo(currentSlide + 1), 600);
-        } else if (currentSlide === slides.length - 1) {
-          setIsAutoPlaying(false);
-          setShowControls(true);
-        }
+        if (isAutoPlaying) advanceToNext();
       };
     }
-  }, [isAutoPlaying, currentSlide, slides.length, goTo]);
+  }, [isAutoPlaying, advanceToNext]);
 
   // ── Auto-hide controls in QWiki mode ──
   useEffect(() => {
@@ -125,10 +142,11 @@ export function PresentationViewer({ presentation, onNewStory }: PresentationVie
         setCurrentSlide(0);
         setDirection(-1);
       }
-      // Play current audio
+      // Play current audio if available
       if (audioRef.current) {
         audioRef.current.play().catch(() => {});
       }
+      // If no audio, the reading timer in the useEffect will handle auto-advance
     }
   }, [isAutoPlaying, currentSlide, slides.length]);
 
@@ -279,7 +297,7 @@ export function PresentationViewer({ presentation, onNewStory }: PresentationVie
             transition={{ duration: 0.35, ease: "easeInOut" }}
             className="absolute inset-0"
           >
-            <SlideContent slide={slide} />
+            <SlideContent slide={slide} isAutoPlaying={isAutoPlaying} />
           </motion.div>
         </AnimatePresence>
 
