@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Info } from "lucide-react";
@@ -11,7 +11,6 @@ import { LoadingState } from "@/components/LoadingState";
 import { PresentationViewer } from "@/components/PresentationViewer";
 import { QuickRepos } from "@/components/QuickRepos";
 import { useGeneratePresentation } from "@/hooks/useGeneratePresentation";
-import { toast } from "@/hooks/use-toast";
 
 type AppState = "input" | "loading" | "presentation";
 
@@ -29,41 +28,59 @@ const Index = () => {
 
   const { generate, isLoading, step, error, data, reset } = useGeneratePresentation();
 
+  // Guard against rapid clicks during exit animations
+  const isTransitioningRef = useRef(false);
+
   const GITHUB_URL_REGEX = /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+\/?$/;
   const isValidUrl = GITHUB_URL_REGEX.test(url);
 
   const handleGenerate = useCallback(async (overrideUrl?: string) => {
+    // Block if already transitioning or loading
+    if (isTransitioningRef.current || isLoading) return;
+
     const targetUrl = overrideUrl || url;
     if (!GITHUB_URL_REGEX.test(targetUrl)) return;
 
+    isTransitioningRef.current = true;
     setUrl(targetUrl);
     setState("loading");
 
+    // Release the guard after the exit animation completes
+    setTimeout(() => {
+      isTransitioningRef.current = false;
+    }, 500);
+
     const result = await generate(targetUrl, mode, language);
     
-    // Directly transition based on return value — no useEffect needed
     if (result) {
       setState("presentation");
     }
-    // If result is null, either an error occurred (shown by LoadingState)
-    // or the generation was canceled/stale (reset already handled state)
-  }, [url, mode, language, generate]);
+    // If result is null and error occurred, LoadingState shows the error
+    // with retry/cancel buttons. No stuck state possible.
+  }, [url, mode, language, generate, isLoading]);
 
   const handleReset = useCallback(() => {
+    isTransitioningRef.current = false;
     setState("input");
     setUrl("");
     reset();
   }, [reset]);
 
   const handleRetry = useCallback(() => {
-    handleGenerate();
-  }, [handleGenerate]);
+    // Reset the generating guard before retrying
+    reset();
+    // Small delay to allow state to settle before re-generating
+    setTimeout(() => {
+      handleGenerate();
+    }, 100);
+  }, [handleGenerate, reset]);
 
   const handleSelectRepo = useCallback((repoUrl: string) => {
     handleGenerate(repoUrl);
   }, [handleGenerate]);
 
   const handleCancel = useCallback(() => {
+    isTransitioningRef.current = false;
     setState("input");
     reset();
   }, [reset]);
@@ -124,7 +141,7 @@ const Index = () => {
                   <div className="flex justify-center">
                     <GenerateButton
                       onClick={() => handleGenerate()}
-                      disabled={!isValidUrl}
+                      disabled={!isValidUrl || isLoading}
                     />
                   </div>
                 </div>
