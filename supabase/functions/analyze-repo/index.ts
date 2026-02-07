@@ -4,11 +4,50 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+// ─── Rate Limiting ─────────────────────────────────────────────────────────────
+
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const RATE_LIMIT_MAX = 10; // max requests per window
+
+interface RateLimitEntry {
+  count: number;
+  resetAt: number;
+}
+
+const rateLimitMap = new Map<string, RateLimitEntry>();
+
+function checkRateLimit(ip: string): { allowed: boolean; retryAfterSeconds?: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  if (!entry || now >= entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true };
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) {
+    const retryAfterSeconds = Math.ceil((entry.resetAt - now) / 1000);
+    return { allowed: false, retryAfterSeconds };
+  }
+
+  entry.count++;
+  return { allowed: true };
+}
+
+// Periodic cleanup of stale entries
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of rateLimitMap.entries()) {
+    if (now >= entry.resetAt) rateLimitMap.delete(key);
+  }
+}, 60_000);
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 
-const MAX_FILES = 30;
+const DEFAULT_MAX_FILES = 30;
 const MAX_LINES_PER_FILE = 500;
 
 const SOURCE_EXTENSIONS = new Set([
@@ -33,7 +72,6 @@ const EXCLUDED_PATTERNS = [
   /babel/i, /postcss/i, /tailwind\.config/i,
 ];
 
-// Identity files we always want
 const IDENTITY_FILES = [
   "README.md", "readme.md", "package.json", "Cargo.toml",
   "pyproject.toml", "go.mod", "pom.xml", "build.gradle",
@@ -63,11 +101,9 @@ interface TreeItem {
 async function fetchFileTree(owner: string, repo: string): Promise<TreeItem[]> {
   const headers = getGitHubHeaders();
 
-  // First get the default branch
   const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
   if (!repoRes.ok) {
     const errText = await repoRes.text();
-    const remaining = repoRes.headers.get("x-ratelimit-remaining");
     const resetTime = repoRes.headers.get("x-ratelimit-reset");
 
     if (repoRes.status === 403 || repoRes.status === 429) {
@@ -85,7 +121,6 @@ async function fetchFileTree(owner: string, repo: string): Promise<TreeItem[]> {
   const repoInfo = await repoRes.json();
   const defaultBranch = repoInfo.default_branch || "main";
 
-  // Fetch recursive tree
   const treeRes = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`,
     { headers }
@@ -116,59 +151,47 @@ function getExtension(path: string): string {
 
 interface PrioritizedFile {
   path: string;
-  priority: number; // lower = higher priority
+  priority: number;
 }
 
-function prioritizeFiles(files: TreeItem[]): PrioritizedFile[] {
+function prioritizeFiles(files: TreeItem[], maxFiles: number): PrioritizedFile[] {
   const result: PrioritizedFile[] = [];
 
   for (const file of files) {
     const filename = file.path.split("/").pop() || "";
     const ext = getExtension(filename);
 
-    // Skip excluded dirs and patterns
     if (isExcludedDir(file.path)) continue;
     if (isExcludedPattern(filename)) continue;
 
-    // Priority 1: Identity files
     if (IDENTITY_FILES.includes(filename)) {
       result.push({ path: file.path, priority: 1 });
       continue;
     }
 
-    // Must be a source code file from here
     if (!SOURCE_EXTENSIONS.has(ext)) continue;
 
     const lowerPath = file.path.toLowerCase();
     const lowerName = filename.toLowerCase().replace(ext, "");
 
-    // Priority 2: Files with key names
     if (["main", "index", "app", "server", "core", "mod", "lib"].some((k) => lowerName.includes(k))) {
       result.push({ path: file.path, priority: 2 });
       continue;
     }
 
-    // Priority 3: Files in key directories
     if (/^(src|lib|pkg|app|core|internal|cmd)\//i.test(lowerPath)) {
       result.push({ path: file.path, priority: 3 });
       continue;
     }
 
-    // Priority 4: Everything else matching filter
     result.push({ path: file.path, priority: 4 });
   }
 
-  // Sort by priority, then by path length (shorter = more important)
   result.sort((a, b) => a.priority - b.priority || a.path.length - b.path.length);
-
-  return result.slice(0, MAX_FILES);
+  return result.slice(0, maxFiles);
 }
 
-async function fetchFileContent(
-  owner: string,
-  repo: string,
-  path: string
-): Promise<string> {
+async function fetchFileContent(owner: string, repo: string, path: string): Promise<string> {
   const headers = getGitHubHeaders();
   headers.Accept = "application/vnd.github.raw";
 
@@ -192,11 +215,18 @@ async function fetchFileContent(
 
 // ─── AI Analysis ───────────────────────────────────────────────────────────────
 
+interface AnalysisOptions {
+  include_narrative?: boolean;
+  include_mermaid?: boolean;
+  target_audience?: "developer" | "manager" | "investor" | "all";
+}
+
 async function analyzeWithAI(
   owner: string,
   repo: string,
-  filesContent: { path: string; content: string }[]
-): Promise<Record<string, unknown>> {
+  filesContent: { path: string; content: string }[],
+  options: AnalysisOptions = {}
+): Promise<{ analysis: Record<string, unknown>; model_used: string }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
@@ -204,7 +234,8 @@ async function analyzeWithAI(
     throw new Error("No AI API key configured");
   }
 
-  // Build file block
+  const { include_narrative = true, include_mermaid = true, target_audience = "all" } = options;
+
   const fileBlock = filesContent
     .map((f) => `--- ${f.path} ---\n${f.content}`)
     .join("\n\n");
@@ -212,6 +243,32 @@ async function analyzeWithAI(
   const systemPrompt = `You are an expert software architect. Analyze the entire codebase provided and return a comprehensive analysis as structured JSON.
 
 Be precise and factual. Extract real data from the code — don't make up metrics.`;
+
+  // Build optional sections
+  const optionalFields: string[] = [];
+  if (include_mermaid) {
+    optionalFields.push(`  "mermaid_architecture": "graph TD\\n  A[\\"Component Name\\"] --> B[\\"Other Component\\"]\\n  ..."`);
+  }
+  if (include_narrative) {
+    optionalFields.push(`  "suggested_narrative": {
+    "hook": "Opening line to grab attention",
+    "chapters": [
+      { "title": "string", "content": "string", "duration_seconds": 15 }
+    ],
+    "closing": "Final memorable statement"
+  }`);
+  }
+
+  let audienceField = `  "target_audiences": {
+    "developer": "Why a dev would care about this repo",
+    "manager": "Why a PM/CTO would care",
+    "investor": "Why this tech matters for business"
+  }`;
+  if (target_audience !== "all") {
+    audienceField = `  "target_audiences": {
+    "${target_audience}": "Why a ${target_audience} would care about this repo"
+  }`;
+  }
 
   const userPrompt = `Analyze this entire codebase for the repository ${owner}/${repo}.
 
@@ -237,19 +294,8 @@ Return a JSON object with this EXACT structure:
   "interesting_facts": [
     "string — something surprising or impressive about this codebase"
   ],
-  "mermaid_architecture": "graph TD\\n  A[\\"Component Name\\"] --> B[\\"Other Component\\"]\\n  ...",
-  "suggested_narrative": {
-    "hook": "Opening line to grab attention",
-    "chapters": [
-      { "title": "string", "content": "string", "duration_seconds": 15 }
-    ],
-    "closing": "Final memorable statement"
-  },
-  "target_audiences": {
-    "developer": "Why a dev would care about this repo",
-    "manager": "Why a PM/CTO would care",
-    "investor": "Why this tech matters for business"
-  }
+${optionalFields.join(",\n")},
+${audienceField}
 }
 
 CRITICAL RULES for "mermaid_architecture":
@@ -260,7 +306,97 @@ CRITICAL RULES for "mermaid_architecture":
 - Use subgraph blocks to group related components
 - Example: graph TD\\n  A["API Gateway"] --> B["Auth Service"]\\n  subgraph Core\\n    B --> C["Database"]\\n  end`;
 
-  // AI provider cascade (same as generate-presentation)
+  // Build required fields for tool schema
+  const requiredFields = [
+    "project_name", "summary", "main_language", "languages",
+    "framework", "architecture_type", "key_components",
+    "patterns_detected", "dependencies_highlight",
+    "complexity_score", "interesting_facts", "target_audiences",
+  ];
+  if (include_mermaid) requiredFields.push("mermaid_architecture");
+  if (include_narrative) requiredFields.push("suggested_narrative");
+
+  const schemaProperties: Record<string, unknown> = {
+    project_name: { type: "string" },
+    summary: { type: "string" },
+    main_language: { type: "string" },
+    languages: { type: "array", items: { type: "string" } },
+    framework: { type: ["string", "null"] },
+    architecture_type: { type: "string" },
+    key_components: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          purpose: { type: "string" },
+          files: { type: "array", items: { type: "string" } },
+        },
+        required: ["name", "purpose", "files"],
+      },
+    },
+    patterns_detected: { type: "array", items: { type: "string" } },
+    dependencies_highlight: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          why: { type: "string" },
+        },
+        required: ["name", "why"],
+      },
+    },
+    complexity_score: { type: "number" },
+    interesting_facts: { type: "array", items: { type: "string" } },
+    target_audiences: { type: "object" },
+  };
+
+  if (include_mermaid) {
+    schemaProperties.mermaid_architecture = { type: "string" };
+  }
+  if (include_narrative) {
+    schemaProperties.suggested_narrative = {
+      type: "object",
+      properties: {
+        hook: { type: "string" },
+        chapters: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              content: { type: "string" },
+              duration_seconds: { type: "number" },
+            },
+            required: ["title", "content", "duration_seconds"],
+          },
+        },
+        closing: { type: "string" },
+      },
+      required: ["hook", "chapters", "closing"],
+    };
+  }
+
+  const toolsPayload = {
+    tools: [
+      {
+        type: "function",
+        function: {
+          name: "return_analysis",
+          description: "Return the structured repository analysis",
+          parameters: {
+            type: "object",
+            properties: schemaProperties,
+            required: requiredFields,
+          },
+        },
+      },
+    ],
+    tool_choice: { type: "function", function: { name: "return_analysis" } },
+  };
+
+  // AI provider cascade
   interface AIProvider {
     name: string;
     endpoint: string;
@@ -295,93 +431,6 @@ CRITICAL RULES for "mermaid_architecture":
   }
 
   console.log(`AI cascade: ${providers.map((p) => p.name).join(" → ")}`);
-
-  const toolsPayload = {
-    tools: [
-      {
-        type: "function",
-        function: {
-          name: "return_analysis",
-          description: "Return the structured repository analysis",
-          parameters: {
-            type: "object",
-            properties: {
-              project_name: { type: "string" },
-              summary: { type: "string" },
-              main_language: { type: "string" },
-              languages: { type: "array", items: { type: "string" } },
-              framework: { type: ["string", "null"] },
-              architecture_type: { type: "string" },
-              key_components: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    name: { type: "string" },
-                    purpose: { type: "string" },
-                    files: { type: "array", items: { type: "string" } },
-                  },
-                  required: ["name", "purpose", "files"],
-                },
-              },
-              patterns_detected: { type: "array", items: { type: "string" } },
-              dependencies_highlight: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    name: { type: "string" },
-                    why: { type: "string" },
-                  },
-                  required: ["name", "why"],
-                },
-              },
-              complexity_score: { type: "number" },
-              interesting_facts: { type: "array", items: { type: "string" } },
-              mermaid_architecture: { type: "string" },
-              suggested_narrative: {
-                type: "object",
-                properties: {
-                  hook: { type: "string" },
-                  chapters: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        title: { type: "string" },
-                        content: { type: "string" },
-                        duration_seconds: { type: "number" },
-                      },
-                      required: ["title", "content", "duration_seconds"],
-                    },
-                  },
-                  closing: { type: "string" },
-                },
-                required: ["hook", "chapters", "closing"],
-              },
-              target_audiences: {
-                type: "object",
-                properties: {
-                  developer: { type: "string" },
-                  manager: { type: "string" },
-                  investor: { type: "string" },
-                },
-                required: ["developer", "manager", "investor"],
-              },
-            },
-            required: [
-              "project_name", "summary", "main_language", "languages",
-              "framework", "architecture_type", "key_components",
-              "patterns_detected", "dependencies_highlight",
-              "complexity_score", "interesting_facts",
-              "mermaid_architecture", "suggested_narrative", "target_audiences",
-            ],
-          },
-        },
-      },
-    ],
-    tool_choice: { type: "function", function: { name: "return_analysis" } },
-  };
 
   let lastError: Error | null = null;
 
@@ -441,7 +490,7 @@ CRITICAL RULES for "mermaid_architecture":
 
         const parsed = JSON.parse(toolCall.function.arguments);
         console.log(`✅ Analysis complete with ${provider.name}`);
-        return parsed;
+        return { analysis: parsed, model_used: provider.model };
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
         console.error(`  ${provider.name} exception:`, lastError.message);
@@ -460,20 +509,52 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  try {
-    const { githubUrl } = await req.json();
+  const startTime = Date.now();
 
-    if (!githubUrl) {
+  // Rate limiting
+  const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || req.headers.get("cf-connecting-ip")
+    || "unknown";
+
+  const rateCheck = checkRateLimit(clientIp);
+  if (!rateCheck.allowed) {
+    console.warn(`Rate limit exceeded for IP: ${clientIp}`);
+    return new Response(
+      JSON.stringify({
+        status: "error",
+        error: `Rate limit exceeded. Max ${RATE_LIMIT_MAX} requests per minute.`,
+        code: 429,
+        retry_after_seconds: rateCheck.retryAfterSeconds,
+      }),
+      {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "Retry-After": String(rateCheck.retryAfterSeconds || 60),
+        },
+      }
+    );
+  }
+
+  try {
+    const body = await req.json();
+
+    // Support both old format (githubUrl) and new format (repo_url)
+    const repoUrl = body.repo_url || body.githubUrl;
+    const options = body.options || {};
+
+    if (!repoUrl) {
       return new Response(
-        JSON.stringify({ error: "githubUrl is required" }),
+        JSON.stringify({ status: "error", error: "repo_url is required", code: 400 }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const match = githubUrl.match(/github\.com\/([^\/]+)\/([^\/\?#]+)/);
+    const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/\?#]+)/);
     if (!match) {
       return new Response(
-        JSON.stringify({ error: "Invalid GitHub URL" }),
+        JSON.stringify({ status: "error", error: "Invalid GitHub URL. Expected format: https://github.com/owner/repo", code: 400 }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -481,7 +562,12 @@ serve(async (req) => {
     const owner = match[1];
     const repo = match[2].replace(/\/$/, "");
 
-    console.log(`=== Starting repo analysis: ${owner}/${repo} ===`);
+    const maxFiles = Math.min(Math.max(options.max_files || DEFAULT_MAX_FILES, 1), 50);
+    const includeNarrative = options.include_narrative !== false;
+    const includeMermaid = options.include_mermaid !== false;
+    const targetAudience = options.target_audience || "all";
+
+    console.log(`=== Starting repo analysis: ${owner}/${repo} (max_files=${maxFiles}, audience=${targetAudience}) ===`);
 
     // Step 1: Fetch file tree
     console.log("Step 1: Scanning repository structure...");
@@ -489,12 +575,16 @@ serve(async (req) => {
     console.log(`  Found ${allFiles.length} total files`);
 
     // Step 2: Prioritize & filter
-    const prioritized = prioritizeFiles(allFiles);
+    const prioritized = prioritizeFiles(allFiles, maxFiles);
     console.log(`  Selected ${prioritized.length} files for analysis`);
 
     if (prioritized.length === 0) {
       return new Response(
-        JSON.stringify({ error: "NO_SOURCE_FILES:No source code files found in this repository." }),
+        JSON.stringify({
+          status: "error",
+          error: "No source code files found in this repository.",
+          code: 400,
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -518,21 +608,37 @@ serve(async (req) => {
 
     // Step 4: AI analysis
     console.log("Step 3: AI analyzing architecture...");
-    const analysis = await analyzeWithAI(owner, repo, filesContent);
+    const { analysis, model_used } = await analyzeWithAI(owner, repo, filesContent, {
+      include_narrative: includeNarrative,
+      include_mermaid: includeMermaid,
+      target_audience: targetAudience,
+    });
 
-    // Add metadata
+    const analysisTimeMs = Date.now() - startTime;
+
+    // Build response in public API format
     const result = {
-      ...analysis,
-      _meta: {
-        owner,
-        repo,
+      status: "success",
+      analysis: {
+        ...analysis,
+        _meta: {
+          owner,
+          repo,
+          files_scanned: prioritized.length,
+          total_files: allFiles.length,
+          analyzed_at: new Date().toISOString(),
+        },
+      },
+      metadata: {
         files_scanned: prioritized.length,
-        total_files: allFiles.length,
-        analyzed_at: new Date().toISOString(),
+        total_files_in_repo: allFiles.length,
+        analysis_time_ms: analysisTimeMs,
+        model_used,
+        timestamp: new Date().toISOString(),
       },
     };
 
-    console.log(`=== Analysis complete for ${owner}/${repo} ===`);
+    console.log(`=== Analysis complete for ${owner}/${repo} in ${analysisTimeMs}ms ===`);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -541,19 +647,18 @@ serve(async (req) => {
     console.error("Analysis error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
 
-    const status =
+    const code =
       message.includes("RATE_LIMIT") ? 429 :
       message.includes("REPO_NOT_FOUND") ? 404 :
       message.includes("NO_SOURCE_FILES") ? 400 :
       message.includes("credits") ? 402 :
       500;
 
-    // Strip error type prefix for user-facing message
     const userMessage = message.replace(/^[A-Z_]+:/, "");
 
     return new Response(
-      JSON.stringify({ error: userMessage }),
-      { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ status: "error", error: userMessage, code }),
+      { status: code, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

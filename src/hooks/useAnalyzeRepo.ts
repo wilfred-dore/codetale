@@ -84,16 +84,31 @@ export function useAnalyzeRepo(): UseAnalyzeRepoReturn {
     try {
       const { data: result, error: fnError } = await supabase.functions.invoke(
         "analyze-repo",
-        { body: { githubUrl } }
+        {
+          body: {
+            repo_url: githubUrl,
+            options: {
+              max_files: 30,
+              include_narrative: true,
+              include_mermaid: true,
+              target_audience: "all",
+            },
+          },
+        }
       );
 
       if (generationIdRef.current !== currentId) return null;
       clearTimers();
 
       if (fnError) throw new Error(fnError.message || "Analysis failed");
-      if (result?.error) throw new Error(result.error);
 
-      const analysis = result as RepoAnalysis;
+      // Handle new API response format
+      if (result?.status === "error") {
+        throw new Error(result.error || "Analysis failed");
+      }
+
+      // Extract analysis from new format (or fall back to old format)
+      const analysis = (result?.analysis || result) as RepoAnalysis;
       setData(analysis);
       setStep("complete");
       return analysis;
