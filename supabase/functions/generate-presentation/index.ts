@@ -521,7 +521,7 @@ async function generateAudio(text: string, language: string = "en"): Promise<str
       body: JSON.stringify({
         text,
         voice_id: voiceId,
-        output_format: "wav",
+        output_format: "mp3",
         only_audio: true,
       }),
     }
@@ -537,7 +537,7 @@ async function generateAudio(text: string, language: string = "en"): Promise<str
   const base64 = base64Encode(new Uint8Array(audioBuffer));
   console.log(`Audio generated: ${audioBuffer.byteLength} bytes`);
 
-  return `data:audio/wav;base64,${base64}`;
+  return `data:audio/mpeg;base64,${base64}`;
 }
 
 // ─── Main Handler ─────────────────────────────────────────────────────────────
@@ -580,56 +580,48 @@ serve(async (req) => {
       });
     });
 
-    // Audio SEQUENTIALLY to respect Gradium's 2-connection WebSocket limit
-    console.log("Step 3b: Generating audio sequentially...");
+    // Audio SEQUENTIALLY + Images in parallel
+    console.log("Step 3b: Generating audio + images...");
 
-    // Determine key slides for avatar video (2-3 slides)
+    const [audios, images] = await Promise.all([
+      generateAllAudioSequentially(slides, language || "en"),
+      Promise.all(imagePromises),
+    ]);
+
+    // Log audio coverage
+    const audioCount = audios.filter(Boolean).length;
+    console.log(`Audio coverage: ${audioCount}/${slides.length} slides`);
+
+    // Step 3c: Generate avatar videos AFTER audio/images to avoid memory spike
     const KEY_VIDEO_TYPES = ["hook", "architecture", "impact"];
     const keySlideIndices = slides
       .map((s: SlideData, i: number) => ({ type: s.type, index: i }))
       .filter((s: { type: string }) => KEY_VIDEO_TYPES.includes(s.type))
-      .slice(0, 3)
+      .slice(0, 2)
       .map((s: { index: number }) => s.index);
 
-    // Generate avatar image for video companion
-    console.log("Step 3b.1: Generating avatar image...");
-    let avatarImageUrl = "";
+    const videoUrls: string[] = new Array(slides.length).fill("");
+
     try {
-      avatarImageUrl = await generateAvatarImage(repoData.name);
+      console.log("Step 3c: Generating avatar image + videos...");
+      const avatarImageUrl = await generateAvatarImage(repoData.name);
+
+      // Generate videos sequentially to keep memory low
+      for (const idx of keySlideIndices) {
+        try {
+          console.log(`  Avatar video for slide ${idx + 1} (${slides[idx].type})...`);
+          const videoUrl = await generateAvatarVideo(avatarImageUrl, slides[idx].type, slides[idx].title);
+          videoUrls[idx] = videoUrl;
+        } catch (err) {
+          console.error(`Video for slide ${idx + 1} failed:`, (err as Error).message);
+        }
+      }
     } catch (err) {
-      console.error("Avatar image failed:", (err as Error).message);
+      console.error("Avatar generation skipped:", (err as Error).message);
     }
 
-    // Start audio (sequential) + avatar videos (parallel) + images simultaneously
-    console.log("Step 3c: Audio + Avatar Videos + Images in parallel...");
-
-    const videoPromises = avatarImageUrl
-      ? keySlideIndices.map((i: number) =>
-          generateAvatarVideo(avatarImageUrl, slides[i].type, slides[i].title)
-            .catch((err: Error) => {
-              console.error(`Video for slide ${i + 1} failed:`, err.message);
-              return "";
-            })
-        )
-      : [];
-
-    const [audios, images, ...videoResults] = await Promise.all([
-      generateAllAudioSequentially(slides, language || "en"),
-      Promise.all(imagePromises),
-      ...videoPromises,
-    ]);
-
-    // Map video results to slide indices
-    const videoUrls: string[] = new Array(slides.length).fill("");
-    keySlideIndices.forEach((slideIdx: number, resultIdx: number) => {
-      videoUrls[slideIdx] = videoResults[resultIdx] || "";
-    });
-
-    // Log coverage
-    const audioCount = audios.filter(Boolean).length;
     const videoCount = videoUrls.filter(Boolean).length;
-    console.log(`Audio coverage: ${audioCount}/${slides.length} slides`);
-    console.log(`Video coverage: ${videoCount}/${slides.length} slides (key slides only)`);
+    console.log(`Video coverage: ${videoCount}/${slides.length} slides`);
 
     // Step 4: Assemble presentation with repo media
     console.log("Step 4: Assembling presentation...");
