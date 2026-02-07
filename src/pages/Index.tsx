@@ -32,11 +32,14 @@ const Index = () => {
   const GITHUB_URL_REGEX = /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+\/?$/;
   const isValidUrl = GITHUB_URL_REGEX.test(url);
 
-  const handleGenerate = useCallback(async () => {
-    if (!isValidUrl) return;
+  const handleGenerate = useCallback(async (overrideUrl?: string) => {
+    const targetUrl = overrideUrl || url;
+    if (!GITHUB_URL_REGEX.test(targetUrl)) return;
+
+    setUrl(targetUrl);
     setState("loading");
 
-    const result = await generate(url, mode, language);
+    const result = await generate(targetUrl, mode, language);
     
     // Directly transition based on return value — no useEffect needed
     if (result) {
@@ -44,7 +47,7 @@ const Index = () => {
     }
     // If result is null, either an error occurred (shown by LoadingState)
     // or the generation was canceled/stale (reset already handled state)
-  }, [isValidUrl, url, mode, language, generate]);
+  }, [url, mode, language, generate]);
 
   const handleReset = useCallback(() => {
     setState("input");
@@ -54,6 +57,10 @@ const Index = () => {
 
   const handleRetry = useCallback(() => {
     handleGenerate();
+  }, [handleGenerate]);
+
+  const handleSelectRepo = useCallback((repoUrl: string) => {
+    handleGenerate(repoUrl);
   }, [handleGenerate]);
 
   const handleCancel = useCallback(() => {
@@ -116,13 +123,13 @@ const Index = () => {
 
                   <div className="flex justify-center">
                     <GenerateButton
-                      onClick={handleGenerate}
+                      onClick={() => handleGenerate()}
                       disabled={!isValidUrl}
                     />
                   </div>
                 </div>
 
-                <QuickRepos onSelectRepo={setUrl} />
+                <QuickRepos onSelectRepo={handleSelectRepo} />
               </motion.div>
             )}
 
