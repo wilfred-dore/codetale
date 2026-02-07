@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Info } from "lucide-react";
 import { Hero } from "@/components/Hero";
 import { URLInput } from "@/components/URLInput";
@@ -15,20 +15,17 @@ import { toast } from "@/hooks/use-toast";
 
 type AppState = "input" | "loading" | "presentation";
 
+// Read ?repo= param once on mount (no reactive re-renders)
+function getInitialRepo(): string {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("repo") || "";
+}
+
 const Index = () => {
-  const [searchParams] = useSearchParams();
   const [state, setState] = useState<AppState>("input");
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(getInitialRepo);
   const [mode, setMode] = useState<PresentationMode>("developer");
   const [language, setLanguage] = useState<Language>("en");
-
-  // Auto-populate from ?repo= URL parameter
-  useEffect(() => {
-    const repoParam = searchParams.get("repo");
-    if (repoParam) {
-      setUrl(repoParam);
-    }
-  }, [searchParams]);
 
   const { generate, isLoading, step, error, data, reset } = useGeneratePresentation();
 

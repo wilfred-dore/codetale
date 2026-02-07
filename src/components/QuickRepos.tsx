@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -9,21 +8,19 @@ interface QuickReposProps {
   onSelectRepo: (url: string) => void;
 }
 
-const tabOrder = [2, 1, 0]; // Showcase, Partners, Featured Tools
+const tabLabels = ["💡 Examples", "🏆 From partners"];
 
 export function QuickRepos({ onSelectRepo }: QuickReposProps) {
-  const navigate = useNavigate();
-  const tabs = tabOrder.map((i) => repoSections[i]);
   const [activeTab, setActiveTab] = useState(0);
 
   const handleClick = (repo: RepoEntry) => {
+    // Update URL for shareability without using navigate (avoids re-render issues)
     const encoded = encodeURIComponent(repo.url);
-    navigate(`/?repo=${encoded}`, { replace: true });
+    window.history.replaceState(null, "", `/?repo=${encoded}`);
     onSelectRepo(repo.url);
   };
 
-  // Short tab labels derived from section labels
-  const tabLabels = ["💡 Legendary", "🏆 Partners", "⚡ Tools"];
+  const section = repoSections[activeTab];
 
   return (
     <motion.div
@@ -68,17 +65,17 @@ export function QuickRepos({ onSelectRepo }: QuickReposProps) {
           className="space-y-2.5"
         >
           <p className="text-xs text-muted-foreground/70 font-mono tracking-wide text-center">
-            {tabs[activeTab].label}
+            {section.label}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2">
-            {tabs[activeTab].items.map((repo) => (
+            {section.items.map((repo) => (
               <Tooltip key={repo.url}>
                 <TooltipTrigger asChild>
                   <Button
-                    variant={tabs[activeTab].variant}
-                    size={tabs[activeTab].size}
+                    variant={section.variant}
+                    size={section.size}
                     className={`transition-all duration-200 hover:scale-[1.03] ${
-                      tabs[activeTab].size === "sm" ? "text-xs" : ""
+                      section.size === "sm" ? "text-xs" : ""
                     }`}
                     aria-label={`Try ${repo.name} repository`}
                     onClick={() => handleClick(repo)}
