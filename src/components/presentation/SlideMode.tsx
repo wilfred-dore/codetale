@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Volume2, VolumeX } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, Pause, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SlideContent } from "@/components/SlideContent";
 import type { GeneratedSlide } from "@/types/presentation";
@@ -28,31 +28,16 @@ export function SlideMode({ slides, isActive }: SlideModeProps) {
     [currentSlide, slides.length]
   );
 
-  // ── Auto-play audio when slide changes ──
+  // ── Stop audio when slide changes (no auto-play) ──
   useEffect(() => {
-    // Stop previous audio
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
       audioRef.current.onended = null;
+      audioRef.current.onplay = null;
     }
     setIsAudioPlaying(false);
-
-    if (slide.audioUrl) {
-      const audio = new Audio(slide.audioUrl);
-      audio.muted = isMuted;
-      audioRef.current = audio;
-
-      audio.onended = () => setIsAudioPlaying(false);
-      audio.onplay = () => setIsAudioPlaying(true);
-
-      // Auto-play audio when landing on slide
-      audio.play().catch(() => {
-        console.log("Audio autoplay blocked");
-      });
-    } else {
-      audioRef.current = null;
-    }
+    audioRef.current = null;
 
     return () => {
       if (audioRef.current) {
@@ -61,7 +46,32 @@ export function SlideMode({ slides, isActive }: SlideModeProps) {
         audioRef.current.onplay = null;
       }
     };
-  }, [currentSlide, slide.audioUrl]);
+  }, [currentSlide]);
+
+  // ── Explicit play/pause toggle ──
+  const toggleAudio = useCallback(() => {
+    if (!slide.audioUrl) return;
+
+    if (isAudioPlaying && audioRef.current) {
+      audioRef.current.pause();
+      setIsAudioPlaying(false);
+      return;
+    }
+
+    // If no audio element or different slide, create new one
+    if (!audioRef.current) {
+      const audio = new Audio(slide.audioUrl);
+      audio.muted = isMuted;
+      audioRef.current = audio;
+      audio.onended = () => setIsAudioPlaying(false);
+    }
+
+    audioRef.current.play().then(() => {
+      setIsAudioPlaying(true);
+    }).catch(() => {
+      console.log("Audio play blocked");
+    });
+  }, [slide.audioUrl, isAudioPlaying, isMuted]);
 
   // Sync mute state to current audio
   useEffect(() => {
@@ -119,40 +129,54 @@ export function SlideMode({ slides, isActive }: SlideModeProps) {
           </motion.div>
         </AnimatePresence>
 
-        {/* ── Mute/Unmute button (top-left) ── */}
-        <div className="absolute top-3 left-4 z-20">
-          <button
-            onClick={toggleMute}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg 
-              bg-background/40 backdrop-blur-sm border border-border/20
-              text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-            <span className="text-xs font-mono">{isMuted ? "Muted" : "Audio"}</span>
-          </button>
-        </div>
+        {/* ── Audio controls (top-left) ── */}
+        <div className="absolute top-3 left-4 z-20 flex items-center gap-1.5">
+          {/* Play/Pause narration button */}
+          {slide.audioUrl && (
+            <button
+              onClick={toggleAudio}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg 
+                bg-background/40 backdrop-blur-sm border border-border/20
+                text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {isAudioPlaying ? (
+                <>
+                  <Pause className="w-3.5 h-3.5" />
+                  <span className="text-xs font-mono">Pause</span>
+                  {!isMuted && (
+                    <div className="flex items-center gap-0.5 ml-0.5">
+                      {[0, 1, 2].map((i) => (
+                        <motion.div
+                          key={i}
+                          className="w-0.5 bg-primary rounded-full"
+                          animate={{ height: [3, 10, 3] }}
+                          transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span className="text-xs font-mono">Listen</span>
+                </>
+              )}
+            </button>
+          )}
 
-        {/* ── Audio playing indicator (bottom-right) ── */}
-        {isAudioPlaying && !isMuted && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="absolute bottom-4 right-4 z-20 flex items-center gap-2 px-3 py-2 rounded-xl
-              bg-primary/15 backdrop-blur-md border border-primary/30"
-          >
-            <div className="flex items-center gap-0.5">
-              {[0, 1, 2, 3].map((i) => (
-                <motion.div
-                  key={i}
-                  className="w-0.5 bg-primary rounded-full"
-                  animate={{ height: [3, 12, 3] }}
-                  transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
-                />
-              ))}
-            </div>
-            <span className="text-xs font-medium text-primary">Narrating…</span>
-          </motion.div>
-        )}
+          {/* Mute toggle (only visible when audio is playing) */}
+          {isAudioPlaying && (
+            <button
+              onClick={toggleMute}
+              className="flex items-center justify-center w-7 h-7 rounded-lg 
+                bg-background/40 backdrop-blur-sm border border-border/20
+                text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+            </button>
+          )}
+        </div>
 
         {/* ── Slide counter ── */}
         <div className="absolute top-3 right-4 z-20">
