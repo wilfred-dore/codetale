@@ -21,6 +21,7 @@ interface RepoData {
   languages: Record<string, number>;
   openIssues: number;
   license: string;
+  mediaUrls: string[];
 }
 
 async function fetchGitHubData(url: string): Promise<RepoData> {
@@ -57,6 +58,10 @@ async function fetchGitHubData(url: string): Promise<RepoData> {
   const readmeContent = readmeRes?.ok ? await readmeRes.text() : "";
   const languages = langRes.ok ? await langRes.json() : {};
 
+  // ── Extract media URLs from README ──
+  const mediaUrls = extractMediaUrls(readmeContent, owner, repo);
+  console.log(`Found ${mediaUrls.length} media URLs in README`);
+
   return {
     name: repoInfo.name,
     fullName: repoInfo.full_name,
@@ -69,10 +74,62 @@ async function fetchGitHubData(url: string): Promise<RepoData> {
     languages,
     openIssues: repoInfo.open_issues_count,
     license: repoInfo.license?.spdx_id || "Unknown",
+    mediaUrls,
   };
 }
 
+// ── Extract images/videos/gifs from README markdown ──
+function extractMediaUrls(readme: string, owner: string, repo: string): string[] {
+  const urls: string[] = [];
+
+  // Match markdown images: ![alt](url)
+  const mdImages = readme.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g);
+  for (const m of mdImages) {
+    urls.push(resolveGitHubUrl(m[1], owner, repo));
+  }
+
+  // Match HTML img tags: <img src="url" />
+  const htmlImages = readme.matchAll(/<img[^>]+src=["']([^"']+)["']/gi);
+  for (const m of htmlImages) {
+    urls.push(resolveGitHubUrl(m[1], owner, repo));
+  }
+
+  // Match HTML video/source: <video src="url"> or <source src="url">
+  const htmlVideos = readme.matchAll(/<(?:video|source)[^>]+src=["']([^"']+)["']/gi);
+  for (const m of htmlVideos) {
+    urls.push(resolveGitHubUrl(m[1], owner, repo));
+  }
+
+  // Deduplicate and filter to actual media
+  const seen = new Set<string>();
+  return urls.filter((u) => {
+    if (seen.has(u)) return false;
+    seen.add(u);
+    // Keep only real image/video URLs (not badges/shields)
+    const lower = u.toLowerCase();
+    if (lower.includes("shields.io") || lower.includes("badge") || lower.includes("img.shields")) return false;
+    if (lower.includes("github.com") && lower.includes("/workflows/")) return false;
+    return /\.(png|jpg|jpeg|gif|webp|svg|mp4|webm|mov)(\?|$)/i.test(lower) ||
+      lower.includes("user-images.githubusercontent.com") ||
+      lower.includes("raw.githubusercontent.com");
+  }).slice(0, 6); // Max 6 media items
+}
+
+function resolveGitHubUrl(url: string, owner: string, repo: string): string {
+  if (url.startsWith("http")) return url;
+  // Relative path → raw.githubusercontent.com
+  const cleanPath = url.replace(/^\.\//, "").replace(/^\//,"");
+  return `https://raw.githubusercontent.com/${owner}/${repo}/main/${cleanPath}`;
+}
+
 // ─── AI Slide Generation (Lovable AI) ──────────────────────────────────────────
+
+interface StatItem {
+  label: string;
+  value: number;
+  suffix?: string;
+  prefix?: string;
+}
 
 interface SlideData {
   title: string;
@@ -81,6 +138,7 @@ interface SlideData {
   voiceScript: string;
   type: string;
   mermaidDiagram?: string;
+  stats?: StatItem[];
 }
 
 async function generateSlides(
@@ -102,6 +160,10 @@ async function generateSlides(
       ? "Use a technical, precise tone. Focus on architecture, code patterns, and engineering decisions. Include specific technical details, performance characteristics, and implementation insights."
       : "Use an engaging, storytelling tone. Focus on the problem being solved, the impact, and why developers should care. Make it exciting and accessible. Use metaphors and analogies.";
 
+  const mediaContext = repoData.mediaUrls.length > 0
+    ? `\n\nThe repository contains these media files that can be used in the presentation:\n${repoData.mediaUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}\nReference these in your visualDescription when relevant — the frontend will prioritize repo media over generated images.`
+    : "";
+
   const systemPrompt = `You are a world-class documentary narrator and storytelling expert. You transform dry technical repositories into compelling cinematic narratives. Think Ken Burns meets Silicon Valley. Every repository has a hero's journey - find it and tell it. Use dramatic pauses, compelling statistics, and emotional hooks. Never use boring bullet points - use narrative flow.
 
 ${languageGuide[language] || languageGuide.en}
@@ -122,9 +184,14 @@ For each slide, provide:
 - title: Slide headline (max 8 words)
 - content: Markdown body (2-4 paragraphs, use bullet points, bold, code spans)
 - visualDescription: A vivid scene description for AI image generation (for a dark-themed tech illustration)
-- voiceScript: Narration script (30-50 words, conversational, professional)
+- voiceScript: MANDATORY narration script (30-50 words, conversational, professional). EVERY slide MUST have a voiceScript — this is critical for continuous audio narration.
 - type: One of "hook", "overview", "architecture", "features", "code", "impact"
 - mermaidDiagram: ONLY for the architecture slide, provide a valid Mermaid flowchart diagram string. For other slides, omit this field.
+- stats: For slides that mention numbers (stars, downloads, forks, performance metrics, adoption figures, percentages), provide an array of stat objects with {label, value, suffix?, prefix?}. For example: [{label: "GitHub Stars", value: 45000, suffix: "+"}, {label: "Downloads/month", value: 2000000, suffix: "/mo"}]. Omit for slides without meaningful numbers.
+
+IMPORTANT for voiceScript: EVERY slide MUST have a voiceScript. No exceptions. This powers the continuous narration engine.
+
+IMPORTANT for stats: Extract real numbers from the repository data. Use stars, forks, issues, download counts, performance benchmarks mentioned in the README. Make numbers impactful and visual.
 
 IMPORTANT for mermaidDiagram: Use simple graph TD syntax. Keep it clean. Example:
 graph TD
@@ -140,7 +207,7 @@ Stars: ${repoData.stars} | Forks: ${repoData.forks} | Issues: ${repoData.openIss
 License: ${repoData.license}
 Topics: ${repoData.topics.join(", ") || "None"}
 Languages: ${Object.entries(repoData.languages).map(([l, b]) => `${l}: ${b}`).join(", ")}
-
+${mediaContext}
 README (first 3000 chars):
 ${repoData.readme}`;
 
@@ -190,6 +257,19 @@ ${repoData.readme}`;
                           ],
                         },
                         mermaidDiagram: { type: "string" },
+                        stats: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              label: { type: "string" },
+                              value: { type: "number" },
+                              suffix: { type: "string" },
+                              prefix: { type: "string" },
+                            },
+                            required: ["label", "value"],
+                          },
+                        },
                       },
                       required: [
                         "title",
@@ -283,7 +363,30 @@ async function generateImage(prompt: string): Promise<string> {
   return imageUrl;
 }
 
-// ─── Gradium Audio Generation ─────────────────────────────────────────────────
+// ─── Gradium Audio Generation with Retry ──────────────────────────────────────
+
+async function generateAudioWithRetry(
+  text: string,
+  language: string = "en",
+  maxRetries: number = 2
+): Promise<string> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 0) {
+        console.log(`  Audio retry attempt ${attempt}...`);
+        await new Promise((r) => setTimeout(r, 1000 * attempt)); // Back off
+      }
+      return await generateAudio(text, language);
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      console.warn(`  Audio attempt ${attempt + 1} failed: ${lastError.message}`);
+    }
+  }
+
+  throw lastError || new Error("Audio generation failed after retries");
+}
 
 async function generateAudio(text: string, language: string = "en"): Promise<string> {
   const GRADIUM_API_KEY = Deno.env.get("GRADIUM_API_KEY");
@@ -349,10 +452,10 @@ serve(async (req) => {
     console.log(`=== Starting presentation generation ===`);
     console.log(`URL: ${githubUrl}, Mode: ${mode}, Language: ${language || "en"}`);
 
-    // Step 1: Fetch GitHub data
+    // Step 1: Fetch GitHub data (includes media extraction)
     console.log("Step 1: Fetching GitHub data...");
     const repoData = await fetchGitHubData(githubUrl);
-    console.log(`Repo: ${repoData.fullName} (${repoData.stars}⭐)`);
+    console.log(`Repo: ${repoData.fullName} (${repoData.stars}⭐, ${repoData.mediaUrls.length} media)`);
 
     // Step 2: Generate slides with AI
     console.log("Step 2: Generating slides with AI...");
@@ -365,15 +468,16 @@ serve(async (req) => {
       console.log(`  Image ${i + 1}: ${slide.visualDescription.substring(0, 50)}...`);
       return generateImage(slide.visualDescription).catch((err) => {
         console.error(`Image ${i + 1} failed:`, err.message);
-        return ""; // Return empty string on failure
+        return "";
       });
     });
 
+    // Audio with retry — every slide MUST have audio for cinema mode
     const audioPromises = slides.map((slide, i) => {
       console.log(`  Audio ${i + 1}: ${slide.voiceScript.substring(0, 50)}...`);
-      return generateAudio(slide.voiceScript, language || "en").catch((err) => {
-        console.error(`Audio ${i + 1} failed:`, err.message);
-        return ""; // Return empty string on failure
+      return generateAudioWithRetry(slide.voiceScript, language || "en").catch((err) => {
+        console.error(`Audio ${i + 1} FAILED after retries:`, err.message);
+        return ""; // Still fallback to empty as last resort
       });
     });
 
@@ -382,7 +486,11 @@ serve(async (req) => {
       Promise.all(audioPromises),
     ]);
 
-    // Step 4: Assemble presentation
+    // Log audio coverage
+    const audioCount = audios.filter(Boolean).length;
+    console.log(`Audio coverage: ${audioCount}/${slides.length} slides`);
+
+    // Step 4: Assemble presentation with repo media
     console.log("Step 4: Assembling presentation...");
     const presentation = {
       repoInfo: {
@@ -398,6 +506,7 @@ serve(async (req) => {
         ...slide,
         imageUrl: images[i] || "",
         audioUrl: audios[i] || "",
+        repoMediaUrls: repoData.mediaUrls,
       })),
     };
 

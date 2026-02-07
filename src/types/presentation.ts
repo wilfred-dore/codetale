@@ -1,5 +1,12 @@
 export type SlideType = "hook" | "overview" | "architecture" | "features" | "code" | "impact";
 
+export interface StatItem {
+  label: string;
+  value: number;
+  suffix?: string;
+  prefix?: string;
+}
+
 export interface GeneratedSlide {
   title: string;
   content: string;
@@ -9,6 +16,8 @@ export interface GeneratedSlide {
   mermaidDiagram?: string;
   imageUrl: string;
   audioUrl: string;
+  stats?: StatItem[];
+  repoMediaUrls?: string[];
 }
 
 export interface RepoInfo {

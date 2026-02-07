@@ -3,6 +3,7 @@ import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
+import { AnimatedStats } from "@/components/AnimatedStats";
 import type { GeneratedSlide } from "@/types/presentation";
 import { motion } from "framer-motion";
 import { SlideMediaIndicator } from "@/components/SlideMediaIndicator";
@@ -15,6 +16,7 @@ interface SlideContentProps {
 
 export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator = false }: SlideContentProps) {
   const hasImage = !!slide.imageUrl;
+  const hasRepoMedia = slide.repoMediaUrls && slide.repoMediaUrls.length > 0;
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-start px-6 md:px-12 py-4 overflow-y-auto">
@@ -53,6 +55,11 @@ export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator 
           {slide.title}
         </motion.h2>
 
+        {/* Animated stats (when numbers are present) */}
+        {slide.stats && slide.stats.length > 0 && (
+          <AnimatedStats stats={slide.stats} />
+        )}
+
         {/* Foreground image */}
         {hasImage && (
           <motion.div
@@ -67,6 +74,57 @@ export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator 
               className="w-full h-auto object-cover max-h-[200px] md:max-h-[260px]"
               loading="lazy"
             />
+          </motion.div>
+        )}
+
+        {/* Repo media gallery (real screenshots/demos from repo) */}
+        {hasRepoMedia && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="w-full max-w-2xl mx-auto"
+          >
+            <div className={`grid gap-2 ${
+              slide.repoMediaUrls!.length === 1 ? "grid-cols-1" :
+              slide.repoMediaUrls!.length === 2 ? "grid-cols-2" :
+              "grid-cols-2 md:grid-cols-3"
+            }`}>
+              {slide.repoMediaUrls!.slice(0, 4).map((url, i) => {
+                const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(url);
+                return (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.25 + i * 0.1 }}
+                    className="rounded-lg overflow-hidden border border-white/10 shadow-lg"
+                  >
+                    {isVideo ? (
+                      <video
+                        src={url}
+                        className="w-full h-auto max-h-[120px] object-cover"
+                        muted
+                        autoPlay
+                        loop
+                        playsInline
+                      />
+                    ) : (
+                      <img
+                        src={url}
+                        alt={`Repository media ${i + 1}`}
+                        className="w-full h-auto max-h-[120px] object-cover"
+                        loading="lazy"
+                        onError={(e) => {
+                          // Hide broken images
+                          (e.target as HTMLElement).parentElement!.style.display = 'none';
+                        }}
+                      />
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
           </motion.div>
         )}
 
