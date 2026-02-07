@@ -213,113 +213,126 @@ ${repoData.readme}`;
 
   console.log("Calling Lovable AI for slide generation...");
 
-  const response = await fetch(
-    "https://ai.gateway.lovable.dev/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "create_presentation",
-              description: "Create a 6-slide presentation from repository data",
-              parameters: {
-                type: "object",
-                properties: {
-                  slides: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        title: { type: "string" },
-                        content: { type: "string" },
-                        visualDescription: { type: "string" },
-                        voiceScript: { type: "string" },
-                        type: {
-                          type: "string",
-                          enum: [
-                            "hook",
-                            "overview",
-                            "architecture",
-                            "features",
-                            "code",
-                            "impact",
-                          ],
-                        },
-                        mermaidDiagram: { type: "string" },
-                        stats: {
-                          type: "array",
-                          items: {
-                            type: "object",
-                            properties: {
-                              label: { type: "string" },
-                              value: { type: "number" },
-                              suffix: { type: "string" },
-                              prefix: { type: "string" },
+  // Retry logic for transient AI errors
+  let lastAiError: Error | null = null;
+  for (let aiAttempt = 0; aiAttempt < 3; aiAttempt++) {
+    if (aiAttempt > 0) {
+      console.log(`AI retry attempt ${aiAttempt}...`);
+      await new Promise((r) => setTimeout(r, 2000 * aiAttempt));
+    }
+
+    const response = await fetch(
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "create_presentation",
+                description: "Create a 6-slide presentation from repository data",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    slides: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          title: { type: "string" },
+                          content: { type: "string" },
+                          visualDescription: { type: "string" },
+                          voiceScript: { type: "string" },
+                          type: {
+                            type: "string",
+                            enum: [
+                              "hook",
+                              "overview",
+                              "architecture",
+                              "features",
+                              "code",
+                              "impact",
+                            ],
+                          },
+                          mermaidDiagram: { type: "string" },
+                          stats: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                label: { type: "string" },
+                                value: { type: "number" },
+                                suffix: { type: "string" },
+                                prefix: { type: "string" },
+                              },
+                              required: ["label", "value"],
                             },
-                            required: ["label", "value"],
                           },
                         },
+                        required: [
+                          "title",
+                          "content",
+                          "visualDescription",
+                          "voiceScript",
+                          "type",
+                        ],
+                        additionalProperties: false,
                       },
-                      required: [
-                        "title",
-                        "content",
-                        "visualDescription",
-                        "voiceScript",
-                        "type",
-                      ],
-                      additionalProperties: false,
                     },
                   },
+                  required: ["slides"],
+                  additionalProperties: false,
                 },
-                required: ["slides"],
-                additionalProperties: false,
               },
             },
+          ],
+          tool_choice: {
+            type: "function",
+            function: { name: "create_presentation" },
           },
-        ],
-        tool_choice: {
-          type: "function",
-          function: { name: "create_presentation" },
-        },
-      }),
-    }
-  );
+        }),
+      }
+    );
 
-  if (!response.ok) {
-    const errText = await response.text();
-    console.error("Lovable AI error:", response.status, errText);
-    if (response.status === 429) {
-      throw new Error("AI rate limit exceeded. Please try again in a moment.");
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`Lovable AI error (attempt ${aiAttempt + 1}):`, response.status, errText);
+      if (response.status === 429) {
+        throw new Error("AI rate limit exceeded. Please try again in a moment.");
+      }
+      if (response.status === 402) {
+        throw new Error("AI credits exhausted. Please add credits to continue.");
+      }
+      lastAiError = new Error(`AI generation failed: ${response.status}`);
+      continue;
     }
-    if (response.status === 402) {
-      throw new Error("AI credits exhausted. Please add credits to continue.");
+
+    const data = await response.json();
+    console.log("AI response received");
+
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall) {
+      console.error(`No tool call in AI response (attempt ${aiAttempt + 1}):`, JSON.stringify(data).substring(0, 500));
+      lastAiError = new Error("AI did not return structured slide data");
+      continue;
     }
-    throw new Error(`AI generation failed: ${response.status}`);
+
+    const parsed = JSON.parse(toolCall.function.arguments);
+    console.log(`Generated ${parsed.slides.length} slides`);
+    return parsed.slides;
   }
 
-  const data = await response.json();
-  console.log("AI response received");
-
-  const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-  if (!toolCall) {
-    console.error("No tool call in AI response:", JSON.stringify(data));
-    throw new Error("AI did not return structured slide data");
-  }
-
-  const parsed = JSON.parse(toolCall.function.arguments);
-  console.log(`Generated ${parsed.slides.length} slides`);
-  return parsed.slides;
+  throw lastAiError || new Error("AI generation failed after 3 attempts");
 }
 
 // ─── fal.ai Image Generation ──────────────────────────────────────────────────
