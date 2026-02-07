@@ -85,17 +85,30 @@ interface SlideData {
 
 async function generateSlides(
   repoData: RepoData,
-  mode: string
+  mode: string,
+  language: string = "en"
 ): Promise<SlideData[]> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+  const languageGuide: Record<string, string> = {
+    en: "Write ALL slide content and voice scripts in English.",
+    fr: "Write ALL slide content and voice scripts in French (français). Titles, content, and voiceScript MUST be in French. Use natural, idiomatic French.",
+    de: "Write ALL slide content and voice scripts in German (Deutsch). Titles, content, and voiceScript MUST be in German. Use natural, idiomatic German.",
+  };
 
   const toneGuide =
     mode === "developer"
       ? "Use a technical, precise tone. Focus on architecture, code patterns, and engineering decisions. Include specific technical details, performance characteristics, and implementation insights."
       : "Use an engaging, storytelling tone. Focus on the problem being solved, the impact, and why developers should care. Make it exciting and accessible. Use metaphors and analogies.";
 
-  const systemPrompt = `You are an expert presentation creator. Generate exactly 6 slides for a GitHub repository presentation. ${toneGuide}
+  const systemPrompt = `You are a world-class documentary narrator and storytelling expert. You transform dry technical repositories into compelling cinematic narratives. Think Ken Burns meets Silicon Valley. Every repository has a hero's journey - find it and tell it. Use dramatic pauses, compelling statistics, and emotional hooks. Never use boring bullet points - use narrative flow.
+
+${languageGuide[language] || languageGuide.en}
+
+${toneGuide}
+
+Generate exactly 6 slides for a GitHub repository presentation.
 
 The 6 slides MUST follow this structure:
 1. Hook - A compelling problem statement or attention-grabbing stat
@@ -272,11 +285,19 @@ async function generateImage(prompt: string): Promise<string> {
 
 // ─── Gradium Audio Generation ─────────────────────────────────────────────────
 
-async function generateAudio(text: string): Promise<string> {
+async function generateAudio(text: string, language: string = "en"): Promise<string> {
   const GRADIUM_API_KEY = Deno.env.get("GRADIUM_API_KEY");
   if (!GRADIUM_API_KEY) throw new Error("GRADIUM_API_KEY is not configured");
 
-  console.log("Generating audio with Gradium...");
+  // Cinematic narrator voices per language
+  const voiceMap: Record<string, string> = {
+    en: "MZWrEHL2Fe_uc2Rv",  // James — warm, resonant, storytelling
+    fr: "axlOaUiFyOZhy4nv",  // Leo — warm, smooth French narrator
+    de: "0y1VZjPabOBU3rWy",  // Maximilian — warm, professional German
+  };
+
+  const voiceId = voiceMap[language] || voiceMap.en;
+  console.log(`Generating audio with Gradium (lang: ${language}, voice: ${voiceId})...`);
 
   const response = await fetch(
     "https://eu.api.gradium.ai/api/post/speech/tts",
@@ -288,7 +309,7 @@ async function generateAudio(text: string): Promise<string> {
       },
       body: JSON.stringify({
         text,
-        voice_id: "YTpq7expH9539ERJ",
+        voice_id: voiceId,
         output_format: "wav",
         only_audio: true,
       }),
@@ -316,7 +337,7 @@ serve(async (req) => {
   }
 
   try {
-    const { githubUrl, mode } = await req.json();
+    const { githubUrl, mode, language } = await req.json();
 
     if (!githubUrl) {
       return new Response(
@@ -326,7 +347,7 @@ serve(async (req) => {
     }
 
     console.log(`=== Starting presentation generation ===`);
-    console.log(`URL: ${githubUrl}, Mode: ${mode}`);
+    console.log(`URL: ${githubUrl}, Mode: ${mode}, Language: ${language || "en"}`);
 
     // Step 1: Fetch GitHub data
     console.log("Step 1: Fetching GitHub data...");
@@ -335,7 +356,7 @@ serve(async (req) => {
 
     // Step 2: Generate slides with AI
     console.log("Step 2: Generating slides with AI...");
-    const slides = await generateSlides(repoData, mode || "developer");
+    const slides = await generateSlides(repoData, mode || "developer", language || "en");
 
     // Step 3: Generate images and audio in parallel
     console.log("Step 3: Generating images and audio in parallel...");
@@ -350,7 +371,7 @@ serve(async (req) => {
 
     const audioPromises = slides.map((slide, i) => {
       console.log(`  Audio ${i + 1}: ${slide.voiceScript.substring(0, 50)}...`);
-      return generateAudio(slide.voiceScript).catch((err) => {
+      return generateAudio(slide.voiceScript, language || "en").catch((err) => {
         console.error(`Audio ${i + 1} failed:`, err.message);
         return ""; // Return empty string on failure
       });

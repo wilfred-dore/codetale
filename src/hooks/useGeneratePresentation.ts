@@ -12,7 +12,7 @@ export type GenerationStep =
   | "error";
 
 interface UseGeneratePresentationReturn {
-  generate: (githubUrl: string, mode: string) => Promise<void>;
+  generate: (githubUrl: string, mode: string, language?: string) => Promise<void>;
   isLoading: boolean;
   step: GenerationStep;
   error: string | null;
@@ -33,7 +33,7 @@ export function useGeneratePresentation(): UseGeneratePresentationReturn {
     setData(null);
   }, []);
 
-  const generate = useCallback(async (githubUrl: string, mode: string) => {
+  const generate = useCallback(async (githubUrl: string, mode: string, language: string = "en") => {
     setIsLoading(true);
     setError(null);
     setData(null);
@@ -49,7 +49,7 @@ export function useGeneratePresentation(): UseGeneratePresentationReturn {
       const { data: result, error: fnError } = await supabase.functions.invoke(
         "generate-presentation",
         {
-          body: { githubUrl, mode },
+          body: { githubUrl, mode, language },
         }
       );
 

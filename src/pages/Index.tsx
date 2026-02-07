@@ -5,6 +5,7 @@ import { Info } from "lucide-react";
 import { Hero } from "@/components/Hero";
 import { URLInput } from "@/components/URLInput";
 import { ModeSelector, type PresentationMode } from "@/components/ModeSelector";
+import { LanguageSelector, type Language } from "@/components/LanguageSelector";
 import { GenerateButton } from "@/components/GenerateButton";
 import { LoadingState } from "@/components/LoadingState";
 import { PresentationViewer } from "@/components/PresentationViewer";
@@ -17,6 +18,7 @@ const Index = () => {
   const [state, setState] = useState<AppState>("input");
   const [url, setUrl] = useState("");
   const [mode, setMode] = useState<PresentationMode>("developer");
+  const [language, setLanguage] = useState<Language>("en");
 
   const { generate, isLoading, step, error, data, reset } = useGeneratePresentation();
 
@@ -28,11 +30,11 @@ const Index = () => {
     setState("loading");
 
     try {
-      await generate(url, mode);
+      await generate(url, mode, language);
     } catch (err) {
       console.error("Generation failed:", err);
     }
-  }, [isValidUrl, url, mode, generate]);
+  }, [isValidUrl, url, mode, language, generate]);
 
   // Transition to presentation when data arrives
   const handleDataReady = useCallback(() => {
@@ -110,7 +112,10 @@ const Index = () => {
                 <div className="space-y-6">
                   <URLInput value={url} onChange={setUrl} />
 
-                  <ModeSelector mode={mode} onModeChange={setMode} />
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <ModeSelector mode={mode} onModeChange={setMode} />
+                    <LanguageSelector language={language} onLanguageChange={setLanguage} />
+                  </div>
 
                   <div className="flex justify-center">
                     <GenerateButton
