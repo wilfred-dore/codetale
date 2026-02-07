@@ -6,6 +6,7 @@ Transform GitHub repositories into cinematic stories, interactive slides, and da
 <img src="https://img.shields.io/badge/Built%20with-Lovable-purple" alt="Built with Lovable" />
 
 [📄 View presentation slides](slides/CodeTalePresentation.pdf)
+[📹 Watch Deep Dive Video](demo_videos/AlpicSkybridgeDemo.mp4)
 
 **Status:** Hackathon prototype for {Tech: Europe} Paris 2026.
 
