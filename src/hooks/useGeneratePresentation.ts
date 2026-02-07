@@ -20,6 +20,8 @@ interface UseGeneratePresentationReturn {
   reset: () => void;
 }
 
+const SAFETY_TIMEOUT_MS = 120_000; // 2 minutes max per generation
+
 export function useGeneratePresentation(): UseGeneratePresentationReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState<GenerationStep>("idle");
@@ -29,6 +31,8 @@ export function useGeneratePresentation(): UseGeneratePresentationReturn {
   // Generation counter to ignore stale results
   const generationIdRef = useRef(0);
   const stepTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Guard against concurrent calls
+  const isGeneratingRef = useRef(false);
 
   const clearTimers = useCallback(() => {
     stepTimersRef.current.forEach(clearTimeout);
@@ -37,6 +41,7 @@ export function useGeneratePresentation(): UseGeneratePresentationReturn {
 
   const reset = useCallback(() => {
     generationIdRef.current += 1; // Invalidate any in-flight generation
+    isGeneratingRef.current = false;
     clearTimers();
     setIsLoading(false);
     setStep("idle");
@@ -45,9 +50,16 @@ export function useGeneratePresentation(): UseGeneratePresentationReturn {
   }, [clearTimers]);
 
   const generate = useCallback(async (githubUrl: string, mode: string, language: string = "en"): Promise<PresentationData | null> => {
+    // Block concurrent calls — the first one wins until it finishes or is reset
+    if (isGeneratingRef.current) {
+      console.log("Generation already in progress, ignoring duplicate call");
+      return null;
+    }
+
     // Invalidate previous generation and reset state
     generationIdRef.current += 1;
     const currentId = generationIdRef.current;
+    isGeneratingRef.current = true;
     
     clearTimers();
     setIsLoading(true);
@@ -55,8 +67,21 @@ export function useGeneratePresentation(): UseGeneratePresentationReturn {
     setData(null);
     setStep("analyzing");
 
+    // Safety timeout: auto-reset if stuck
+    const safetyTimer = setTimeout(() => {
+      if (generationIdRef.current === currentId && isGeneratingRef.current) {
+        console.warn("Generation safety timeout reached, resetting...");
+        isGeneratingRef.current = false;
+        clearTimers();
+        setError("Generation timed out. Please try again.");
+        setStep("error");
+        setIsLoading(false);
+      }
+    }, SAFETY_TIMEOUT_MS);
+    stepTimersRef.current.push(safetyTimer);
+
     // Simulate progress steps while the backend processes
-    stepTimersRef.current = [
+    stepTimersRef.current.push(
       setTimeout(() => {
         if (generationIdRef.current === currentId) setStep("generating");
       }, 3000),
@@ -66,7 +91,7 @@ export function useGeneratePresentation(): UseGeneratePresentationReturn {
       setTimeout(() => {
         if (generationIdRef.current === currentId) setStep("audio");
       }, 25000),
-    ];
+    );
 
     try {
       const { data: result, error: fnError } = await supabase.functions.invoke(
@@ -106,6 +131,7 @@ export function useGeneratePresentation(): UseGeneratePresentationReturn {
       return null;
     } finally {
       if (generationIdRef.current === currentId) {
+        isGeneratingRef.current = false;
         setIsLoading(false);
       }
     }
