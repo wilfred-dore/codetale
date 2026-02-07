@@ -161,7 +161,7 @@ async function generateSlides(
       : "Use an engaging, storytelling tone. Focus on the problem being solved, the impact, and why developers should care. Make it exciting and accessible. Use metaphors and analogies.";
 
   const mediaContext = repoData.mediaUrls.length > 0
-    ? `\n\nThe repository contains these media files that can be used in the presentation:\n${repoData.mediaUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}\nReference these in your visualDescription when relevant — the frontend will prioritize repo media over generated images.`
+    ? `\n\nThe repository contains these media files (screenshots, demos, diagrams) from the README:\n${repoData.mediaUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}\n\nFor each slide, you can assign relevant media URLs in the "repoMediaUrls" field. IMPORTANT RULES:\n- Only assign a media URL to a slide if it is genuinely relevant to that slide's topic (e.g. a screenshot of the UI for a features slide, an architecture diagram for the architecture slide).\n- Do NOT repeat the same media URL across multiple slides.\n- Do NOT assign media if you cannot reasonably infer what the image shows from its URL/filename.\n- It's better to assign NO media than to assign irrelevant media.\n- Maximum 2 media URLs per slide.`
     : "";
 
   const systemPrompt = `You are a world-class documentary narrator and storytelling expert. You transform dry technical repositories into compelling cinematic narratives. Think Ken Burns meets Silicon Valley. Every repository has a hero's journey - find it and tell it. Use dramatic pauses, compelling statistics, and emotional hooks. Never use boring bullet points - use narrative flow.
@@ -277,6 +277,11 @@ ${repoData.readme}`;
                               },
                               required: ["label", "value"],
                             },
+                          },
+                          repoMediaUrls: {
+                            type: "array",
+                            description: "Relevant media URLs from the repository to display on this slide. Only include URLs from the provided list that are genuinely relevant. Max 2.",
+                            items: { type: "string" },
                           },
                         },
                         required: [
@@ -531,12 +536,20 @@ serve(async (req) => {
         language: repoData.language,
         topics: repoData.topics,
       },
-      slides: slides.map((slide: SlideData, i: number) => ({
-        ...slide,
-        imageUrl: images[i] || "",
-        audioUrl: audios[i] || "",
-        repoMediaUrls: repoData.mediaUrls,
-      })),
+      slides: slides.map((slide: SlideData, i: number) => {
+        // Use AI-assigned media URLs (deduplicated), fallback to empty
+        const aiMedia = (slide as any).repoMediaUrls as string[] | undefined;
+        const validMedia = aiMedia
+          ? aiMedia.filter((u: string) => repoData.mediaUrls.includes(u)).slice(0, 2)
+          : [];
+        
+        return {
+          ...slide,
+          imageUrl: images[i] || "",
+          audioUrl: audios[i] || "",
+          repoMediaUrls: validMedia,
+        };
+      }),
     };
 
     console.log("=== Presentation generation complete ===");
