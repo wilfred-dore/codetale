@@ -22,6 +22,8 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
   const readingStartTime = useRef<number>(0);
   const readingDuration = useRef<number>(0);
   const progressInterval = useRef<ReturnType<typeof setInterval>>();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollAnimationRef = useRef<number>();
 
   const slide = slides[currentSlide];
 
@@ -74,7 +76,58 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
     }
   }, []);
 
+  // ── Auto-scroll content in Cinema Mode ──
+  const startAutoScroll = useCallback((durationMs: number) => {
+    if (scrollAnimationRef.current) cancelAnimationFrame(scrollAnimationRef.current);
+
+    // Wait for content to render, then measure
+    const startDelay = setTimeout(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      const scrollable = container.querySelector('[data-cinema-scroll]') as HTMLElement;
+      if (!scrollable) return;
+
+      const maxScroll = scrollable.scrollHeight - scrollable.clientHeight;
+      if (maxScroll <= 10) return; // No meaningful overflow
+
+      scrollable.scrollTop = 0;
+
+      const startTime = Date.now();
+      // Leave 15% buffer at end, start after 15% delay
+      const scrollStartDelay = durationMs * 0.15;
+      const scrollDuration = durationMs * 0.70;
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        if (elapsed < scrollStartDelay) {
+          scrollAnimationRef.current = requestAnimationFrame(animate);
+          return;
+        }
+
+        const scrollElapsed = elapsed - scrollStartDelay;
+        const progress = Math.min(1, scrollElapsed / scrollDuration);
+        // Ease-in-out
+        const eased = progress < 0.5
+          ? 2 * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+        scrollable.scrollTop = eased * maxScroll;
+
+        if (progress < 1) {
+          scrollAnimationRef.current = requestAnimationFrame(animate);
+        }
+      };
+
+      scrollAnimationRef.current = requestAnimationFrame(animate);
+    }, 300);
+
+    return startDelay;
+  }, []);
+
   // ── Audio playback & auto-advance — continuous narration ──
+  const autoScrollCleanup = useRef<ReturnType<typeof setTimeout>>();
+  
   useEffect(() => {
     // Cleanup previous
     if (audioRef.current) {
@@ -84,6 +137,8 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
     }
     if (readingTimer.current) clearTimeout(readingTimer.current);
     if (progressInterval.current) clearInterval(progressInterval.current);
+    if (scrollAnimationRef.current) cancelAnimationFrame(scrollAnimationRef.current);
+    if (autoScrollCleanup.current) clearTimeout(autoScrollCleanup.current);
     setAudioProgress(0);
 
     if (!isPlaying) return;
@@ -94,6 +149,13 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
       audioRef.current = audio;
 
       audio.onended = () => advanceToNext();
+      
+      // Get audio duration for auto-scroll, then play
+      audio.onloadedmetadata = () => {
+        const durationMs = audio.duration * 1000;
+        autoScrollCleanup.current = startAutoScroll(durationMs);
+      };
+      
       audio.play().catch(() => console.log("Autoplay blocked"));
 
       startProgressTracking(0, true);
@@ -101,6 +163,7 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
       audioRef.current = null;
       const duration = getReadingMs(slide);
       startProgressTracking(duration, false);
+      autoScrollCleanup.current = startAutoScroll(duration);
       readingTimer.current = setTimeout(() => advanceToNext(), duration);
     }
 
@@ -111,6 +174,8 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
       }
       if (readingTimer.current) clearTimeout(readingTimer.current);
       if (progressInterval.current) clearInterval(progressInterval.current);
+      if (scrollAnimationRef.current) cancelAnimationFrame(scrollAnimationRef.current);
+      if (autoScrollCleanup.current) clearTimeout(autoScrollCleanup.current);
     };
   }, [currentSlide, isPlaying, slide, advanceToNext, getReadingMs, isMuted, startProgressTracking]);
 
@@ -146,6 +211,7 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
       if (audioRef.current) audioRef.current.pause();
       if (readingTimer.current) clearTimeout(readingTimer.current);
       if (progressInterval.current) clearInterval(progressInterval.current);
+      if (scrollAnimationRef.current) cancelAnimationFrame(scrollAnimationRef.current);
     } else {
       if (currentSlide === slides.length - 1 && audioProgress >= 0.99) {
         setCurrentSlide(0);
@@ -191,7 +257,7 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
       }}
     >
       {/* ── Slide content with cinematic crossfade ── */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0" ref={scrollContainerRef}>
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={currentSlide}
@@ -202,7 +268,7 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
             transition={{ duration: 0.6, ease: "easeInOut" }}
             className="absolute inset-0"
           >
-            <SlideContent slide={slide} isAutoPlaying={isPlaying} hideMediaIndicator />
+            <SlideContent slide={slide} isAutoPlaying={isPlaying} hideMediaIndicator isCinemaMode />
           </motion.div>
         </AnimatePresence>
       </div>

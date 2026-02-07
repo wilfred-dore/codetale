@@ -13,14 +13,19 @@ interface SlideContentProps {
   slide: GeneratedSlide;
   isAutoPlaying?: boolean;
   hideMediaIndicator?: boolean;
+  isCinemaMode?: boolean;
 }
 
-export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator = false }: SlideContentProps) {
+export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator = false, isCinemaMode = false }: SlideContentProps) {
   const hasImage = !!slide.imageUrl;
   const hasRepoMedia = slide.repoMediaUrls && slide.repoMediaUrls.length > 0;
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-start px-6 md:px-12 py-4 overflow-y-auto">
+    <div
+      className="relative w-full h-full flex flex-col items-center justify-start px-6 md:px-12 py-4 overflow-y-auto"
+      {...(isCinemaMode ? { 'data-cinema-scroll': true } : {})}
+      style={isCinemaMode ? { scrollBehavior: 'auto' } : undefined}
+    >
       {/* Subtle background image wash */}
       {hasImage && (
         <div className="absolute inset-0 z-0">
