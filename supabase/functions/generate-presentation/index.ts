@@ -363,12 +363,12 @@ async function generateImage(prompt: string): Promise<string> {
   return imageUrl;
 }
 
-// ─── Gradium Audio Generation with Retry ──────────────────────────────────────
+// ─── Gradium Audio Generation — Sequential to respect 2-connection limit ─────
 
 async function generateAudioWithRetry(
   text: string,
   language: string = "en",
-  maxRetries: number = 2
+  maxRetries: number = 3
 ): Promise<string> {
   let lastError: Error | null = null;
 
@@ -376,7 +376,7 @@ async function generateAudioWithRetry(
     try {
       if (attempt > 0) {
         console.log(`  Audio retry attempt ${attempt}...`);
-        await new Promise((r) => setTimeout(r, 1000 * attempt)); // Back off
+        await new Promise((r) => setTimeout(r, 1500 * attempt)); // Longer backoff
       }
       return await generateAudio(text, language);
     } catch (err) {
@@ -386,6 +386,26 @@ async function generateAudioWithRetry(
   }
 
   throw lastError || new Error("Audio generation failed after retries");
+}
+
+// Generate all audio SEQUENTIALLY to avoid Gradium's 2-connection WebSocket limit
+async function generateAllAudioSequentially(
+  slides: SlideData[],
+  language: string
+): Promise<string[]> {
+  const results: string[] = [];
+  for (let i = 0; i < slides.length; i++) {
+    const slide = slides[i];
+    console.log(`  Audio ${i + 1}/${slides.length}: ${slide.voiceScript.substring(0, 50)}...`);
+    try {
+      const audioUrl = await generateAudioWithRetry(slide.voiceScript, language);
+      results.push(audioUrl);
+    } catch (err) {
+      console.error(`Audio ${i + 1} FAILED after all retries:`, (err as Error).message);
+      results.push(""); // Last resort fallback
+    }
+  }
+  return results;
 }
 
 async function generateAudio(text: string, language: string = "en"): Promise<string> {
@@ -472,19 +492,11 @@ serve(async (req) => {
       });
     });
 
-    // Audio with retry — every slide MUST have audio for cinema mode
-    const audioPromises = slides.map((slide, i) => {
-      console.log(`  Audio ${i + 1}: ${slide.voiceScript.substring(0, 50)}...`);
-      return generateAudioWithRetry(slide.voiceScript, language || "en").catch((err) => {
-        console.error(`Audio ${i + 1} FAILED after retries:`, err.message);
-        return ""; // Still fallback to empty as last resort
-      });
-    });
+    // Audio SEQUENTIALLY to respect Gradium's 2-connection WebSocket limit
+    console.log("Step 3b: Generating audio sequentially...");
+    const audios = await generateAllAudioSequentially(slides, language || "en");
 
-    const [images, audios] = await Promise.all([
-      Promise.all(imagePromises),
-      Promise.all(audioPromises),
-    ]);
+    const images = await Promise.all(imagePromises);
 
     // Log audio coverage
     const audioCount = audios.filter(Boolean).length;
