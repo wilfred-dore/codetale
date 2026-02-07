@@ -1,20 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  RotateCcw,
-  FileDown,
-  Maximize,
-  Minimize,
-  Play,
-  Pause,
-  SkipForward,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { SlideContent } from "@/components/SlideContent";
+import { AnimatePresence, motion } from "framer-motion";
 import type { PresentationData } from "@/types/presentation";
+import { ModeSelectionScreen, type ViewMode } from "@/components/presentation/ModeSelectionScreen";
+import { PresentationTopBar } from "@/components/presentation/PresentationTopBar";
+import { CinemaMode } from "@/components/presentation/CinemaMode";
+import { SlideMode } from "@/components/presentation/SlideMode";
 
 interface PresentationViewerProps {
   presentation: PresentationData;
@@ -23,155 +13,11 @@ interface PresentationViewerProps {
 
 export function PresentationViewer({ presentation, onNewStory }: PresentationViewerProps) {
   const { slides, repoInfo } = presentation;
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [direction, setDirection] = useState(0);
+  const [viewMode, setViewMode] = useState<ViewMode | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
-  const [showControls, setShowControls] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const hideControlsTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  const slide = slides[currentSlide];
-
-  const goTo = useCallback(
-    (index: number) => {
-      if (index < 0 || index >= slides.length) return;
-      setDirection(index > currentSlide ? 1 : -1);
-      setCurrentSlide(index);
-    },
-    [currentSlide, slides.length]
-  );
-
-  // ── Estimate reading time for slides without audio ──
-  const getReadingDuration = useCallback((s: typeof slide) => {
-    const wordCount = (s.content + " " + s.title).split(/\s+/).length;
-    // ~150 words per minute, min 4s, max 15s
-    const seconds = Math.max(4, Math.min(15, (wordCount / 150) * 60));
-    return seconds * 1000;
-  }, []);
-
-  // ── Advance to next slide (used by both audio-end and reading timer) ──
-  const advanceToNext = useCallback(() => {
-    if (currentSlide < slides.length - 1) {
-      setTimeout(() => goTo(currentSlide + 1), 600);
-    } else {
-      setIsAutoPlaying(false);
-      setShowControls(true);
-    }
-  }, [currentSlide, slides.length, goTo]);
-
-  // ── Audio playback tied to current slide ──
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-
-    if (slide.audioUrl) {
-      const audio = new Audio(slide.audioUrl);
-      audioRef.current = audio;
-
-      audio.onended = () => {
-        if (isAutoPlaying) advanceToNext();
-      };
-
-      if (isAutoPlaying) {
-        audio.play().catch(() => {
-          console.log("Autoplay blocked by browser");
-        });
-      }
-    } else {
-      audioRef.current = null;
-
-      // No audio → auto-advance after reading timer
-      if (isAutoPlaying) {
-        const duration = getReadingDuration(slide);
-        const timer = setTimeout(() => advanceToNext(), duration);
-        return () => clearTimeout(timer);
-      }
-    }
-
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.onended = null;
-      }
-    };
-  }, [currentSlide, slide.audioUrl, isAutoPlaying, advanceToNext, getReadingDuration, slide]);
-
-  // Update audio onended when isAutoPlaying changes
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.onended = () => {
-        if (isAutoPlaying) advanceToNext();
-      };
-    }
-  }, [isAutoPlaying, advanceToNext]);
-
-  // ── Auto-hide controls in QWiki mode ──
-  useEffect(() => {
-    if (isAutoPlaying) {
-      hideControlsTimer.current = setTimeout(() => setShowControls(false), 2500);
-    } else {
-      setShowControls(true);
-    }
-    return () => {
-      if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
-    };
-  }, [isAutoPlaying, currentSlide]);
-
-  const handleMouseMove = useCallback(() => {
-    setShowControls(true);
-    if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
-    if (isAutoPlaying) {
-      hideControlsTimer.current = setTimeout(() => setShowControls(false), 2500);
-    }
-  }, [isAutoPlaying]);
-
-  // ── QWiki Play/Pause ──
-  const toggleAutoPlay = useCallback(() => {
-    if (isAutoPlaying) {
-      setIsAutoPlaying(false);
-      setShowControls(true);
-      if (audioRef.current) audioRef.current.pause();
-    } else {
-      setIsAutoPlaying(true);
-      // If at the end, restart from beginning
-      if (currentSlide === slides.length - 1) {
-        setCurrentSlide(0);
-        setDirection(-1);
-      }
-      // Play current audio if available
-      if (audioRef.current) {
-        audioRef.current.play().catch(() => {});
-      }
-      // If no audio, the reading timer in the useEffect will handle auto-advance
-    }
-  }, [isAutoPlaying, currentSlide, slides.length]);
-
-  // Keyboard navigation
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        goTo(currentSlide + 1);
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        goTo(currentSlide - 1);
-      } else if (e.key === " ") {
-        e.preventDefault();
-        toggleAutoPlay();
-      } else if (e.key === "f" || e.key === "F") {
-        e.preventDefault();
-        toggleFullscreen();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [currentSlide, goTo, toggleAutoPlay]);
-
-  // Fullscreen toggle
+  // ── Fullscreen toggle ──
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
@@ -186,6 +32,18 @@ export function PresentationViewer({ presentation, onNewStory }: PresentationVie
     document.addEventListener("fullscreenchange", handler);
     return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
+
+  // ── Keyboard: F for fullscreen ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.key === "f" || e.key === "F") && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [toggleFullscreen]);
 
   // ── Export as standalone HTML ──
   const handleDownloadHTML = useCallback(() => {
@@ -254,189 +112,84 @@ export function PresentationViewer({ presentation, onNewStory }: PresentationVie
     URL.revokeObjectURL(url);
   }, [slides, repoInfo]);
 
-  const handlePrint = useCallback(() => {
-    window.print();
-  }, []);
-
-  const variants = {
-    enter: (dir: number) => ({
-      x: dir > 0 ? 200 : -200,
-      opacity: 0,
-    }),
-    center: { x: 0, opacity: 1 },
-    exit: (dir: number) => ({
-      x: dir > 0 ? -200 : 200,
-      opacity: 0,
-    }),
-  };
-
   return (
-    <motion.div
+    <div
       ref={containerRef}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      onMouseMove={handleMouseMove}
       className={`relative flex flex-col w-full ${
         isFullscreen
           ? "h-screen bg-background"
           : "h-full min-h-[80vh] max-w-6xl mx-auto"
       }`}
     >
-      {/* ── Slide Area (takes full space) ── */}
-      <div className="flex-1 relative rounded-2xl overflow-hidden glass min-h-0">
-        <div className="absolute inset-0 dot-grid opacity-20" />
-
-        <AnimatePresence mode="wait" custom={direction}>
+      <AnimatePresence mode="wait">
+        {/* ── Mode Selection Screen ── */}
+        {viewMode === null && (
           <motion.div
-            key={currentSlide}
-            custom={direction}
-            variants={variants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.35, ease: "easeInOut" }}
-            className="absolute inset-0"
+            key="selection"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.3 }}
+            className="flex-1 flex items-center justify-center"
           >
-            <SlideContent slide={slide} isAutoPlaying={isAutoPlaying} />
-          </motion.div>
-        </AnimatePresence>
-
-        {/* ── QWiki-style centered play button (shown when not auto-playing) ── */}
-        <AnimatePresence>
-          {!isAutoPlaying && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.2 }}
-              className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none"
-            >
-              <button
-                onClick={toggleAutoPlay}
-                className="pointer-events-auto group flex items-center gap-3 px-8 py-4 rounded-2xl
-                  bg-primary/90 backdrop-blur-md text-primary-foreground
-                  shadow-[0_0_40px_hsl(var(--primary)/0.4)]
-                  hover:bg-primary hover:shadow-[0_0_60px_hsl(var(--primary)/0.6)]
-                  hover:scale-105 transition-all duration-300"
-              >
-                <Play className="w-7 h-7 fill-current" />
-                <span className="text-lg font-semibold tracking-wide">Play Story</span>
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── Cinematic progress bar at top ── */}
-        {isAutoPlaying && (
-          <div className="absolute top-0 left-0 right-0 z-30 h-1 bg-secondary/30">
-            <motion.div
-              className="h-full bg-primary"
-              animate={{ width: `${((currentSlide + 1) / slides.length) * 100}%` }}
-              transition={{ duration: 0.5 }}
+            <ModeSelectionScreen
+              repoName={repoInfo.name}
+              onSelect={setViewMode}
             />
-          </div>
+          </motion.div>
         )}
 
-        {/* ── Slide counter overlay ── */}
-        <div className="absolute top-3 right-4 z-30">
-          <span className="text-xs text-muted-foreground/60 font-mono bg-background/40 backdrop-blur-sm px-2 py-1 rounded-md">
-            {currentSlide + 1} / {slides.length}
-          </span>
-        </div>
-      </div>
-
-      {/* ── Bottom controls bar ── */}
-      <AnimatePresence>
-        {showControls && (
+        {/* ── Active Presentation Mode ── */}
+        {viewMode !== null && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.25 }}
-            className="shrink-0 mt-3 flex items-center justify-between gap-3 px-2"
+            key="viewer"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex flex-col flex-1 min-h-0"
           >
-            {/* Left: nav + repo info */}
-            <div className="flex items-center gap-2">
-              {!isFullscreen && (
-                <Button variant="glass" size="sm" onClick={onNewStory} className="rounded-lg">
-                  <RotateCcw className="w-4 h-4" />
-                </Button>
-              )}
-              <Button
-                variant="glass"
-                size="sm"
-                onClick={() => goTo(currentSlide - 1)}
-                disabled={currentSlide === 0}
-                className="rounded-lg"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-            </div>
+            {/* Top bar */}
+            <PresentationTopBar
+              repoInfo={repoInfo}
+              viewMode={viewMode}
+              onModeChange={setViewMode}
+              onNewStory={onNewStory}
+              onDownloadHTML={handleDownloadHTML}
+              isFullscreen={isFullscreen}
+              onToggleFullscreen={toggleFullscreen}
+            />
 
-            {/* Center: play/pause + dots */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={toggleAutoPlay}
-                className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${
-                  isAutoPlaying
-                    ? "bg-primary text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.4)]"
-                    : "bg-secondary text-foreground hover:bg-primary hover:text-primary-foreground"
-                }`}
-              >
-                {isAutoPlaying ? (
-                  <Pause className="w-4 h-4" />
-                ) : (
-                  <Play className="w-4 h-4 ml-0.5" />
+            {/* Mode content */}
+            <div className="flex-1 min-h-0">
+              <AnimatePresence mode="wait">
+                {viewMode === "cinema" && (
+                  <motion.div
+                    key="cinema"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="w-full h-full"
+                  >
+                    <CinemaMode slides={slides} isActive={viewMode === "cinema"} />
+                  </motion.div>
                 )}
-              </button>
-
-              {/* Dot indicators */}
-              <div className="flex items-center gap-1.5">
-                {slides.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => goTo(i)}
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      i === currentSlide
-                        ? "bg-primary w-6"
-                        : i < currentSlide
-                        ? "bg-primary/40 w-2"
-                        : "bg-muted-foreground/30 hover:bg-muted-foreground/50 w-2"
-                    }`}
-                  />
-                ))}
-              </div>
-
-              <Button
-                variant="glass"
-                size="sm"
-                onClick={() => goTo(currentSlide + 1)}
-                disabled={currentSlide === slides.length - 1}
-                className="rounded-lg"
-              >
-                <SkipForward className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Right: export + fullscreen */}
-            <div className="flex items-center gap-2">
-              {!isFullscreen && (
-                <>
-                  <Button variant="glass" size="sm" onClick={handleDownloadHTML} className="rounded-lg">
-                    <Download className="w-4 h-4" />
-                  </Button>
-                  <Button variant="glass" size="sm" onClick={handlePrint} className="rounded-lg">
-                    <FileDown className="w-4 h-4" />
-                  </Button>
-                </>
-              )}
-              <Button variant="glass" size="sm" onClick={toggleFullscreen} className="rounded-lg">
-                {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-              </Button>
+                {viewMode === "slides" && (
+                  <motion.div
+                    key="slides"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="w-full h-full"
+                  >
+                    <SlideMode slides={slides} isActive={viewMode === "slides"} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
