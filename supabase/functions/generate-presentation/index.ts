@@ -50,8 +50,20 @@ async function fetchGitHubData(url: string): Promise<RepoData> {
 
   if (!repoRes.ok) {
     const errText = await repoRes.text();
-    console.error("GitHub API error:", repoRes.status, errText);
-    throw new Error(`GitHub API error: ${repoRes.status} - Repository not found or not accessible`);
+    const remaining = repoRes.headers.get("x-ratelimit-remaining");
+    const resetTime = repoRes.headers.get("x-ratelimit-reset");
+    console.error("GitHub API error:", repoRes.status, errText, "Rate limit remaining:", remaining);
+
+    if (repoRes.status === 403 || (repoRes.status === 429)) {
+      const resetDate = resetTime ? new Date(parseInt(resetTime) * 1000) : null;
+      const minutesLeft = resetDate ? Math.ceil((resetDate.getTime() - Date.now()) / 60000) : null;
+      const waitMsg = minutesLeft ? ` Please try again in ~${minutesLeft} minute(s).` : " Please try again later.";
+      throw new Error(`GitHub API rate limit exceeded (60 requests/hour without authentication).${waitMsg}`);
+    }
+    if (repoRes.status === 404) {
+      throw new Error(`Repository not found. Make sure the repository exists and is public.`);
+    }
+    throw new Error(`GitHub API error (${repoRes.status}). Please try again.`);
   }
 
   const repoInfo = await repoRes.json();
