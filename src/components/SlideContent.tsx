@@ -23,14 +23,28 @@ export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator 
   const hasImage = !!slide.imageUrl;
   const hasRepoMedia = slide.repoMediaUrls && slide.repoMediaUrls.length > 0;
 
+  // Determine if slide has rich visualizations (mermaid, charts, code, data structures, repo media)
+  const hasRichViz = !!(
+    slide.mermaidDiagram ||
+    slide.chartConfig ||
+    slide.codeAnimation ||
+    slide.dataStructureAnimation ||
+    hasRepoMedia
+  );
+
+  // Only show AI-generated image if there's no rich visualization
+  const showForegroundImage = hasImage && !hasRichViz;
+  // Use AI image as subtle background wash only when no rich viz
+  const showBackgroundWash = hasImage && !hasRichViz;
+
   return (
     <div
       className="relative w-full h-full flex flex-col items-center justify-start px-6 md:px-12 py-4 overflow-y-auto"
       {...(isCinemaMode ? { 'data-cinema-scroll': true } : {})}
       style={isCinemaMode ? { scrollBehavior: 'auto' } : undefined}
     >
-      {/* Subtle background image wash */}
-      {hasImage && (
+      {/* Subtle background image wash — only when no rich visualizations */}
+      {showBackgroundWash && (
         <div className="absolute inset-0 z-0">
           <img
             src={slide.imageUrl}
@@ -69,8 +83,8 @@ export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator 
           <AnimatedStats stats={slide.stats} />
         )}
 
-        {/* Foreground image with Ken Burns animation */}
-        {hasImage && (
+        {/* Foreground image — only when no rich visualizations exist */}
+        {showForegroundImage && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -135,12 +149,13 @@ export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator 
           </motion.div>
         )}
 
-        {/* Mermaid diagram */}
+        {/* Mermaid diagram — full width, proper sizing */}
         {slide.mermaidDiagram && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
+            className="w-full max-w-3xl mx-auto"
           >
             <MermaidDiagram chart={slide.mermaidDiagram} />
           </motion.div>
