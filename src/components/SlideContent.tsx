@@ -4,7 +4,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
 import { AnimatedStats } from "@/components/AnimatedStats";
-import { AvatarPiP } from "@/components/AvatarPiP";
+import { KenBurnsImage } from "@/components/KenBurnsImage";
 import type { GeneratedSlide } from "@/types/presentation";
 import { motion } from "framer-motion";
 import { SlideMediaIndicator } from "@/components/SlideMediaIndicator";
@@ -18,7 +18,6 @@ interface SlideContentProps {
 export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator = false }: SlideContentProps) {
   const hasImage = !!slide.imageUrl;
   const hasRepoMedia = slide.repoMediaUrls && slide.repoMediaUrls.length > 0;
-  const hasVideo = !!slide.videoUrl;
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-start px-6 md:px-12 py-4 overflow-y-auto">
@@ -62,19 +61,18 @@ export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator 
           <AnimatedStats stats={slide.stats} />
         )}
 
-        {/* Foreground image */}
+        {/* Foreground image with Ken Burns animation */}
         {hasImage && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.15, duration: 0.4 }}
-            className="w-full max-w-2xl mx-auto rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-black/20"
+            className="w-full max-w-2xl mx-auto rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-black/20 max-h-[280px] md:max-h-[360px]"
           >
-            <img
+            <KenBurnsImage
               src={slide.imageUrl}
               alt={slide.visualDescription || slide.title}
-              className="w-full h-auto object-contain max-h-[280px] md:max-h-[360px]"
-              loading="lazy"
+              isPlaying={isAutoPlaying}
             />
           </motion.div>
         )}
@@ -118,7 +116,6 @@ export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator 
                         className="w-full h-auto max-h-[200px] object-contain bg-black/20"
                         loading="lazy"
                         onError={(e) => {
-                          // Hide broken images
                           (e.target as HTMLElement).parentElement!.style.display = 'none';
                         }}
                       />
@@ -188,11 +185,6 @@ export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator 
           </ReactMarkdown>
         </motion.div>
       </div>
-
-      {/* Avatar PiP — positioned absolutely over the slide */}
-      {hasVideo && (
-        <AvatarPiP videoUrl={slide.videoUrl!} isActive={isAutoPlaying} />
-      )}
     </div>
   );
 }

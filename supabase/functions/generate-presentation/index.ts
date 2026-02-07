@@ -363,93 +363,7 @@ async function generateImage(prompt: string): Promise<string> {
   return imageUrl;
 }
 
-// ─── Avatar Image Generation (consistent presenter character) ────────────────
-
-async function generateAvatarImage(repoName: string): Promise<string> {
-  const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
-  if (!FAL_API_KEY) throw new Error("FAL_API_KEY is not configured");
-
-  const prompt = `A friendly tech presenter, stylized 3D character, professional dark outfit, standing in a modern dark tech studio with holographic screens, facing camera, warm confident expression, half body shot, cinematic purple and blue lighting accents, presenting about ${repoName}, ultra high quality, square composition`;
-
-  console.log("Generating avatar image with fal.ai...");
-
-  const response = await fetch("https://fal.run/fal-ai/flux/dev", {
-    method: "POST",
-    headers: {
-      Authorization: `Key ${FAL_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      prompt,
-      image_size: "square_hd",
-      num_images: 1,
-      enable_safety_checker: false,
-    }),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    console.error("fal.ai avatar error:", response.status, errText);
-    throw new Error(`Avatar image generation failed: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const imageUrl = data.images?.[0]?.url;
-  if (!imageUrl) throw new Error("No avatar image returned from fal.ai");
-
-  console.log("Avatar image generated successfully");
-  return imageUrl;
-}
-
-// ─── Avatar Video Generation (image-to-video via MiniMax) ────────────────────
-
-async function generateAvatarVideo(
-  avatarImageUrl: string,
-  slideType: string,
-  slideTitle: string
-): Promise<string> {
-  const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
-  if (!FAL_API_KEY) throw new Error("FAL_API_KEY is not configured");
-
-  const motionPrompts: Record<string, string> = {
-    hook: "The character speaks enthusiastically to camera, natural head movements, engaging eye contact, subtle hand gestures, professional studio setting",
-    architecture: "The character explains a technical concept, using hand gestures to describe a system, professional tone, subtle nodding, studio lighting",
-    impact: "The character speaks with passion and conviction, inspirational expression, gentle hand movements, warm smile, engaging the viewer directly",
-  };
-
-  const prompt = motionPrompts[slideType] || motionPrompts.hook;
-
-  console.log(`Generating avatar video for "${slideTitle}" (${slideType})...`);
-
-  const response = await fetch("https://fal.run/fal-ai/minimax/video-01-live/image-to-video", {
-    method: "POST",
-    headers: {
-      Authorization: `Key ${FAL_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      prompt,
-      image_url: avatarImageUrl,
-      prompt_optimizer: true,
-    }),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    console.error("fal.ai video error:", response.status, errText);
-    throw new Error(`Avatar video generation failed: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const videoUrl = data.video?.url;
-  if (!videoUrl) {
-    console.error("No video URL in fal.ai response:", JSON.stringify(data));
-    throw new Error("No video returned from fal.ai");
-  }
-
-  console.log(`Avatar video generated for "${slideTitle}"`);
-  return videoUrl;
-}
+// (Avatar video generation removed — replaced by client-side Ken Burns animations)
 
 // ─── Gradium Audio Generation — Sequential to respect 2-connection limit ─────
 
@@ -521,7 +435,7 @@ async function generateAudio(text: string, language: string = "en"): Promise<str
       body: JSON.stringify({
         text,
         voice_id: voiceId,
-        output_format: "mp3",
+        output_format: "opus",
         only_audio: true,
       }),
     }
@@ -537,7 +451,7 @@ async function generateAudio(text: string, language: string = "en"): Promise<str
   const base64 = base64Encode(new Uint8Array(audioBuffer));
   console.log(`Audio generated: ${audioBuffer.byteLength} bytes`);
 
-  return `data:audio/mpeg;base64,${base64}`;
+  return `data:audio/ogg;base64,${base64}`;
 }
 
 // ─── Main Handler ─────────────────────────────────────────────────────────────
@@ -592,38 +506,7 @@ serve(async (req) => {
     const audioCount = audios.filter(Boolean).length;
     console.log(`Audio coverage: ${audioCount}/${slides.length} slides`);
 
-    // Step 3c: Generate avatar videos AFTER audio/images to avoid memory spike
-    const KEY_VIDEO_TYPES = ["hook", "architecture", "impact"];
-    const keySlideIndices = slides
-      .map((s: SlideData, i: number) => ({ type: s.type, index: i }))
-      .filter((s: { type: string }) => KEY_VIDEO_TYPES.includes(s.type))
-      .slice(0, 2)
-      .map((s: { index: number }) => s.index);
-
-    const videoUrls: string[] = new Array(slides.length).fill("");
-
-    try {
-      console.log("Step 3c: Generating avatar image + videos...");
-      const avatarImageUrl = await generateAvatarImage(repoData.name);
-
-      // Generate videos sequentially to keep memory low
-      for (const idx of keySlideIndices) {
-        try {
-          console.log(`  Avatar video for slide ${idx + 1} (${slides[idx].type})...`);
-          const videoUrl = await generateAvatarVideo(avatarImageUrl, slides[idx].type, slides[idx].title);
-          videoUrls[idx] = videoUrl;
-        } catch (err) {
-          console.error(`Video for slide ${idx + 1} failed:`, (err as Error).message);
-        }
-      }
-    } catch (err) {
-      console.error("Avatar generation skipped:", (err as Error).message);
-    }
-
-    const videoCount = videoUrls.filter(Boolean).length;
-    console.log(`Video coverage: ${videoCount}/${slides.length} slides`);
-
-    // Step 4: Assemble presentation with repo media
+    // Step 4: Assemble presentation
     console.log("Step 4: Assembling presentation...");
     const presentation = {
       repoInfo: {
@@ -639,7 +522,6 @@ serve(async (req) => {
         ...slide,
         imageUrl: images[i] || "",
         audioUrl: audios[i] || "",
-        videoUrl: videoUrls[i] || "",
         repoMediaUrls: repoData.mediaUrls,
       })),
     };
