@@ -488,7 +488,7 @@ async function generateImage(prompt: string): Promise<string> {
 async function generateAudioWithRetry(
   text: string,
   language: string = "en",
-  maxRetries: number = 3
+  maxRetries: number = 2
 ): Promise<string> {
   let lastError: Error | null = null;
 
@@ -496,7 +496,7 @@ async function generateAudioWithRetry(
     try {
       if (attempt > 0) {
         console.log(`  Audio retry attempt ${attempt}...`);
-        await new Promise((r) => setTimeout(r, 1500 * attempt)); // Longer backoff
+        await new Promise((r) => setTimeout(r, 800 * attempt)); // Short backoff
       }
       return await generateAudio(text, language);
     } catch (err) {
@@ -505,7 +505,9 @@ async function generateAudioWithRetry(
     }
   }
 
-  throw lastError || new Error("Audio generation failed after retries");
+  // Return empty string instead of throwing — let the presentation continue without this audio
+  console.error(`Audio FAILED after ${maxRetries + 1} attempts, skipping: ${lastError?.message}`);
+  return "";
 }
 
 // Generate all audio SEQUENTIALLY to avoid Gradium's 2-connection WebSocket limit
@@ -517,13 +519,8 @@ async function generateAllAudioSequentially(
   for (let i = 0; i < slides.length; i++) {
     const slide = slides[i];
     console.log(`  Audio ${i + 1}/${slides.length}: ${slide.voiceScript.substring(0, 50)}...`);
-    try {
-      const audioUrl = await generateAudioWithRetry(slide.voiceScript, language);
-      results.push(audioUrl);
-    } catch (err) {
-      console.error(`Audio ${i + 1} FAILED after all retries:`, (err as Error).message);
-      results.push(""); // Last resort fallback
-    }
+    const audioUrl = await generateAudioWithRetry(slide.voiceScript, language);
+    results.push(audioUrl);
   }
   return results;
 }
