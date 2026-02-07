@@ -570,9 +570,16 @@ ${deepWikiContent ? `\n\n=== DEEP WIKI ANALYSIS (AI-generated documentation from
             lastError = new Error(`${provider.name}: ${response.status === 402 ? "credits exhausted" : "auth failed"}`);
             break; // Skip retries, go to next provider
           }
+          // OpenAI returns 429 for BOTH rate limits AND quota exhaustion — check the body
           if (response.status === 429) {
+            const isQuotaExhausted = errText.includes("insufficient_quota") || errText.includes("exceeded your current quota");
+            if (isQuotaExhausted) {
+              console.warn(`  ${provider.name} quota exhausted, cascading to next provider...`);
+              lastError = new Error(`${provider.name}: API quota exhausted`);
+              break; // Skip retries, go to next provider
+            }
             lastError = new Error(`${provider.name} rate limited`);
-            continue; // Retry same provider
+            continue; // Retry same provider (transient rate limit)
           }
           lastError = new Error(`${provider.name} failed: ${response.status}`);
           continue; // Retry same provider
@@ -599,7 +606,12 @@ ${deepWikiContent ? `\n\n=== DEEP WIKI ANALYSIS (AI-generated documentation from
     }
   }
 
-  throw lastError || new Error("All AI providers failed");
+  // If we get here, all providers failed
+  const allCreditsIssue = lastError?.message?.includes("credits") || lastError?.message?.includes("quota");
+  if (allCreditsIssue) {
+    throw new Error("All AI providers are out of credits. Please add credits to your Lovable AI workspace (Settings → Usage) or top up your OpenAI account at platform.openai.com/settings/billing.");
+  }
+  throw lastError || new Error("All AI providers failed. Please try again.");
 }
 
 // ─── fal.ai Image Generation ──────────────────────────────────────────────────
