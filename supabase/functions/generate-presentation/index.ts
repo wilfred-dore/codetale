@@ -279,7 +279,7 @@ async function generateAudio(text: string): Promise<string> {
   console.log("Generating audio with Gradium...");
 
   const response = await fetch(
-    "https://eu.api.gradium.ai/api/api/post/speech/tts",
+    "https://eu.api.gradium.ai/api/post/speech/tts",
     {
       method: "POST",
       headers: {
