@@ -68,8 +68,8 @@ export function ModeSelectionScreen({ onSelect, repoName }: ModeSelectionScreenP
             </div>
 
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Sit back & watch. Full auto with voice narration, cinematic transitions, 
-              and immersive fullscreen. Like watching a Netflix documentary.
+              Continuous narration without interruption. Slides flow seamlessly 
+              with voice-over, like watching an arxflix documentary. No clicks needed.
             </p>
 
             <div className="flex items-center gap-2 text-primary font-semibold">
@@ -107,8 +107,8 @@ export function ModeSelectionScreen({ onSelect, repoName }: ModeSelectionScreenP
             </div>
 
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Navigate yourself. Classic slides with manual control, keyboard navigation, 
-              and optional audio per slide. Like Google Slides.
+              Navigate at your pace. Audio narration plays automatically on each slide, 
+              with 🎧 Listen and 📖 Read indicators. Arrow keys or click to advance.
             </p>
 
             <div className="flex items-center gap-2 text-foreground font-semibold">
