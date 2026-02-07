@@ -602,9 +602,23 @@ serve(async (req) => {
     const slides = await generateSlides(repoData, mode || "developer", language || "en");
 
     // Step 3: Generate images and audio in parallel
-    console.log("Step 3: Generating images and audio in parallel...");
+    // Skip Fal AI images for slides that already have rich visualizations
+    console.log("Step 3: Generating images and audio...");
 
-    const imagePromises = slides.map((slide, i) => {
+    const imagePromises = slides.map((slide: any, i: number) => {
+      const hasRichViz = !!(
+        slide.mermaidDiagram ||
+        slide.chartConfig ||
+        slide.codeAnimation ||
+        slide.dataStructureAnimation ||
+        (slide.repoMediaUrls && slide.repoMediaUrls.length > 0)
+      );
+
+      if (hasRichViz) {
+        console.log(`  Image ${i + 1}: SKIPPED (has rich visualization)`);
+        return Promise.resolve("");
+      }
+
       console.log(`  Image ${i + 1}: ${slide.visualDescription.substring(0, 50)}...`);
       return generateImage(slide.visualDescription).catch((err) => {
         console.error(`Image ${i + 1} failed:`, err.message);

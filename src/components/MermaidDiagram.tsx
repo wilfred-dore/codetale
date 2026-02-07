@@ -79,7 +79,8 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
       transition={{ duration: 0.4 }}
       ref={containerRef}
       className="flex items-center justify-center w-full overflow-x-auto py-4
-        [&_svg]:max-w-full [&_svg]:max-h-[50vh] [&_svg]:w-auto [&_svg]:h-auto"
+        [&_svg]:w-full [&_svg]:min-h-[200px] [&_svg]:max-h-[60vh] [&_svg]:h-auto
+        rounded-xl border border-border/30 bg-secondary/20 p-4"
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );
