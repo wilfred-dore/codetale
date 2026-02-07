@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Info } from "lucide-react";
@@ -43,18 +43,19 @@ const Index = () => {
     }
   }, [isValidUrl, url, mode, language, generate]);
 
-  // Transition to presentation when data arrives
-  const handleDataReady = useCallback(() => {
-    if (data && step === "complete") {
+  // Transition to presentation when generation completes
+  useEffect(() => {
+    if (state === "loading" && data && step === "complete") {
       setState("presentation");
     }
-  }, [data, step]);
+  }, [state, data, step]);
 
-  // Watch for completion
-  if (state === "loading" && data && step === "complete") {
-    // Use setTimeout to avoid state update during render
-    setTimeout(() => setState("presentation"), 100);
-  }
+  // Transition back to input on error
+  useEffect(() => {
+    if (state === "loading" && step === "error") {
+      // Keep loading state so LoadingState can show the error + retry
+    }
+  }, [state, step]);
 
   const handleReset = useCallback(() => {
     setState("input");
