@@ -4,6 +4,9 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
 import { AnimatedStats } from "@/components/AnimatedStats";
+import { AnimatedChart } from "@/components/AnimatedChart";
+import { CodeStepper } from "@/components/CodeStepper";
+import { DataStructureViz } from "@/components/DataStructureViz";
 import { KenBurnsImage } from "@/components/KenBurnsImage";
 import type { GeneratedSlide } from "@/types/presentation";
 import { motion } from "framer-motion";
@@ -141,6 +144,21 @@ export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator 
           >
             <MermaidDiagram chart={slide.mermaidDiagram} />
           </motion.div>
+        )}
+
+        {/* Animated chart (data science / metrics slides) */}
+        {slide.chartConfig && (
+          <AnimatedChart config={slide.chartConfig} isPlaying={isAutoPlaying} />
+        )}
+
+        {/* Code stepping animation (algorithm slides) */}
+        {slide.codeAnimation && (
+          <CodeStepper animation={slide.codeAnimation} isPlaying={isAutoPlaying} />
+        )}
+
+        {/* Data structure visualization */}
+        {slide.dataStructureAnimation && (
+          <DataStructureViz animation={slide.dataStructureAnimation} isPlaying={isAutoPlaying} />
         )}
 
         {/* Markdown content */}
