@@ -12,6 +12,8 @@ const corsHeaders = {
 interface RepoData {
   name: string;
   fullName: string;
+  owner: string;
+  repo: string;
   description: string;
   stars: number;
   forks: number;
@@ -77,6 +79,8 @@ async function fetchGitHubData(url: string): Promise<RepoData> {
   return {
     name: repoInfo.name,
     fullName: repoInfo.full_name,
+    owner,
+    repo,
     description: repoInfo.description || "",
     stars: repoInfo.stargazers_count,
     forks: repoInfo.forks_count,
@@ -134,6 +138,63 @@ function resolveGitHubUrl(url: string, owner: string, repo: string): string {
   return `https://raw.githubusercontent.com/${owner}/${repo}/main/${cleanPath}`;
 }
 
+// ─── DeepWiki fetching ─────────────────────────────────────────────────────────
+
+async function fetchDeepWikiData(owner: string, repo: string): Promise<string> {
+  const url = `https://deepwiki.com/${owner}/${repo}`;
+  console.log(`Fetching DeepWiki data from ${url}...`);
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "CodeTale-App/1.0",
+        "Accept": "text/html",
+      },
+    });
+
+    if (!response.ok) {
+      console.warn(`DeepWiki returned ${response.status}, skipping.`);
+      return "";
+    }
+
+    const html = await response.text();
+
+    // Extract meaningful text content from the HTML
+    // Remove script/style tags and their content
+    let text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+      .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
+      .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
+      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "");
+
+    // Convert common HTML elements to readable text
+    text = text
+      .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, "\n## $1\n")
+      .replace(/<li[^>]*>(.*?)<\/li>/gi, "- $1\n")
+      .replace(/<p[^>]*>(.*?)<\/p>/gi, "$1\n\n")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<code[^>]*>(.*?)<\/code>/gi, "`$1`")
+      .replace(/<pre[^>]*>(.*?)<\/pre>/gis, "\n```\n$1\n```\n")
+      .replace(/<[^>]+>/g, " ")  // Strip remaining tags
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/\s+/g, " ")
+      .trim();
+
+    // Truncate to reasonable size for the prompt
+    const truncated = text.substring(0, 5000);
+    console.log(`DeepWiki data fetched: ${truncated.length} chars`);
+    return truncated;
+  } catch (err) {
+    console.warn(`DeepWiki fetch failed (non-blocking):`, err instanceof Error ? err.message : err);
+    return "";
+  }
+}
+
 // ─── AI Slide Generation (Lovable AI) ──────────────────────────────────────────
 
 interface StatItem {
@@ -156,7 +217,8 @@ interface SlideData {
 async function generateSlides(
   repoData: RepoData,
   mode: string,
-  language: string = "en"
+  language: string = "en",
+  deepWikiContent: string = ""
 ): Promise<SlideData[]> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
@@ -182,12 +244,14 @@ ${languageGuide[language] || languageGuide.en}
 
 ${toneGuide}
 
+If a "DEEP WIKI ANALYSIS" section is provided in the user prompt, use it extensively to create MORE ACCURATE and DETAILED architecture diagrams, identify key design patterns, understand component relationships, and produce richer technical content. DeepWiki provides AI-analyzed documentation that goes deeper than the README.
+
 Generate exactly 6 slides for a GitHub repository presentation.
 
 The 6 slides MUST follow this structure:
 1. Hook - A compelling problem statement or attention-grabbing stat (type: "hook")
 2. Overview - What the project does in simple, clear terms (type: "overview")
-3. Architecture - How it works technically, include a mermaid diagram (type: "architecture")
+3. Architecture - Deep technical architecture with a DETAILED mermaid diagram showing real components, services, data flows, and their relationships. Use subgraphs, emojis, and 8-15+ nodes. This is the most impressive slide — make the diagram publication-quality. (type: "architecture")
 4. Key Features / Data Insights - Standout capabilities. For data science / ML projects, use type "data" and provide chartConfig with real metrics. For other projects, use type "features".
 5. Code Walkthrough / Algorithm - A practical usage snippet. For algorithm-heavy projects, use type "algorithm" and provide codeAnimation with step-by-step highlighting AND optionally a dataStructureAnimation. For other projects, use type "code".
 6. Impact - Adoption stats, community, and call-to-action (type: "impact")
@@ -218,10 +282,60 @@ IMPORTANT for chartConfig: Only use for data-heavy repos (ML, data science, benc
 
 IMPORTANT for codeAnimation: Show the CORE algorithm or usage pattern. Keep code under 20 lines. Each step should highlight 1-3 lines with a clear explanation.
 
-IMPORTANT for mermaidDiagram: Use simple graph TD syntax. Keep it clean. Example:
+IMPORTANT for mermaidDiagram: Generate RICH, DETAILED architecture diagrams using advanced Mermaid syntax. Don't just use simple flowcharts. Choose the most appropriate diagram type:
+
+For architecture slides, prefer one of these advanced patterns:
+1. **C4-style architecture** using graph TD with styled subgraphs:
 graph TD
-  A[Input] --> B[Process]
-  B --> C[Output]`;
+  subgraph Client["🖥️ Client Layer"]
+    A[Web App] --> B[Mobile App]
+  end
+  subgraph API["⚡ API Gateway"]
+    C[REST API] --> D[GraphQL]
+  end
+  subgraph Services["🔧 Core Services"]
+    E[Auth Service] --> F[Data Pipeline]
+    F --> G[ML Engine]
+  end
+  Client --> API
+  API --> Services
+
+2. **Sequence diagrams** for request flows:
+sequenceDiagram
+  participant U as User
+  participant A as API
+  participant DB as Database
+  U->>A: Request
+  A->>DB: Query
+  DB-->>A: Results
+  A-->>U: Response
+
+3. **Class diagrams** for OOP/type hierarchies:
+classDiagram
+  class BaseModel {
+    +id: string
+    +created_at: Date
+    +save()
+    +delete()
+  }
+  class User {
+    +name: string
+    +email: string
+    +authenticate()
+  }
+  BaseModel <|-- User
+
+4. **State diagrams** for lifecycle/workflows:
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing: start()
+  Processing --> Complete: success
+  Processing --> Error: failure
+  Error --> Idle: retry
+
+Choose the diagram type that best represents the project's architecture. Make diagrams DETAILED with 8-15 nodes minimum. Use emojis in labels for visual impact. Use subgraphs to group related components.`;
+
+
 
   const userPrompt = `Create a presentation for this GitHub repository:
 
@@ -234,7 +348,8 @@ Topics: ${repoData.topics.join(", ") || "None"}
 Languages: ${Object.entries(repoData.languages).map(([l, b]) => `${l}: ${b}`).join(", ")}
 ${mediaContext}
 README (first 3000 chars):
-${repoData.readme}`;
+${repoData.readme}
+${deepWikiContent ? `\n\n=== DEEP WIKI ANALYSIS (AI-generated documentation from deepwiki.com) ===\nThis provides deeper architectural insights, component relationships, and design patterns:\n${deepWikiContent}` : ""}`;
 
   console.log("Calling Lovable AI for slide generation...");
 
@@ -601,14 +716,19 @@ serve(async (req) => {
     console.log(`=== Starting presentation generation ===`);
     console.log(`URL: ${githubUrl}, Mode: ${mode}, Language: ${language || "en"}`);
 
-    // Step 1: Fetch GitHub data (includes media extraction)
-    console.log("Step 1: Fetching GitHub data...");
+    // Step 1: Fetch GitHub data + DeepWiki data in parallel
+    console.log("Step 1: Fetching GitHub + DeepWiki data...");
     const repoData = await fetchGitHubData(githubUrl);
     console.log(`Repo: ${repoData.fullName} (${repoData.stars}⭐, ${repoData.mediaUrls.length} media)`);
 
-    // Step 2: Generate slides with AI
+    // Fetch DeepWiki in parallel (non-blocking — graceful fallback)
+    console.log("Step 1b: Fetching DeepWiki analysis...");
+    const deepWikiContent = await fetchDeepWikiData(repoData.owner, repoData.repo);
+    console.log(`DeepWiki: ${deepWikiContent ? `${deepWikiContent.length} chars` : "not available"}`);
+
+    // Step 2: Generate slides with AI (enriched with DeepWiki)
     console.log("Step 2: Generating slides with AI...");
-    const slides = await generateSlides(repoData, mode || "developer", language || "en");
+    const slides = await generateSlides(repoData, mode || "developer", language || "en", deepWikiContent);
 
     // Step 3: Generate images and audio in parallel
     // Skip Fal AI images for slides that already have rich visualizations
