@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Clapperboard, LayoutDashboard, Download, RotateCcw, Maximize, Minimize } from "lucide-react";
+import { Clapperboard, LayoutDashboard, Download, Maximize, Minimize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { RepoInfo } from "@/types/presentation";
 import type { ViewMode } from "./ModeSelectionScreen";
@@ -29,14 +29,21 @@ export function PresentationTopBar({
       animate={{ opacity: 1, y: 0 }}
       className="flex items-center justify-between px-4 py-2 border-b border-border/30 bg-background/80 backdrop-blur-md z-40"
     >
-      {/* Left: New story + repo info */}
+      {/* Left: Logo + repo info */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={onNewStory} className="rounded-lg gap-1.5">
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline text-xs">New</span>
-        </Button>
-        <div className="hidden sm:flex items-center gap-2">
-          <span className="text-sm font-semibold text-foreground truncate max-w-[200px]">
+        <button
+          onClick={onNewStory}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          title="New story"
+        >
+          <span className="text-lg">📖</span>
+          <span className="font-display font-bold text-sm text-foreground tracking-tight">
+            CodeTale
+          </span>
+        </button>
+        <span className="text-border/50">|</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-muted-foreground truncate max-w-[200px]">
             {repoInfo.name}
           </span>
           {repoInfo.stars > 0 && (
