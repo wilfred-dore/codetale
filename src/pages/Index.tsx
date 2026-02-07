@@ -10,9 +10,13 @@ import { GenerateButton } from "@/components/GenerateButton";
 import { LoadingState } from "@/components/LoadingState";
 import { PresentationViewer } from "@/components/PresentationViewer";
 import { QuickRepos } from "@/components/QuickRepos";
+import { AnalysisProgress } from "@/components/AnalysisProgress";
+import { AnalysisResults } from "@/components/AnalysisResults";
 import { useGeneratePresentation } from "@/hooks/useGeneratePresentation";
+import { useAnalyzeRepo } from "@/hooks/useAnalyzeRepo";
+import type { RepoAnalysis } from "@/types/analysis";
 
-type AppState = "input" | "loading" | "presentation";
+type AppState = "input" | "analyzing" | "analysis-results" | "loading" | "presentation";
 
 // Read ?repo= param once on mount (no reactive re-renders)
 function getInitialRepo(): string {
@@ -25,8 +29,17 @@ const Index = () => {
   const [url, setUrl] = useState(getInitialRepo);
   const [mode, setMode] = useState<PresentationMode>("developer");
   const [language, setLanguage] = useState<Language>("en");
+  const [analysisData, setAnalysisData] = useState<RepoAnalysis | null>(null);
 
   const { generate, isLoading, step, error, data, reset } = useGeneratePresentation();
+  const {
+    analyze,
+    isLoading: isAnalyzing,
+    step: analysisStep,
+    error: analysisError,
+    data: analysisResult,
+    reset: resetAnalysis,
+  } = useAnalyzeRepo();
 
   // Guard against rapid clicks during exit animations
   const isTransitioningRef = useRef(false);
@@ -34,8 +47,47 @@ const Index = () => {
   const GITHUB_URL_REGEX = /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+\/?$/;
   const isValidUrl = GITHUB_URL_REGEX.test(url);
 
+  // ─── Analysis flow ───────────────────────────────────────────────────────────
+
+  const handleAnalyze = useCallback(async (overrideUrl?: string) => {
+    if (isTransitioningRef.current || isAnalyzing) return;
+
+    const targetUrl = overrideUrl || url;
+    if (!GITHUB_URL_REGEX.test(targetUrl)) return;
+
+    isTransitioningRef.current = true;
+    setUrl(targetUrl);
+    setState("analyzing");
+
+    setTimeout(() => { isTransitioningRef.current = false; }, 500);
+
+    const result = await analyze(targetUrl);
+    if (result) {
+      setAnalysisData(result);
+      setState("analysis-results");
+    }
+    // If null + error, AnalysisProgress shows error with retry/cancel
+  }, [url, analyze, isAnalyzing]);
+
+  // ─── Presentation generation (from analysis results) ─────────────────────────
+
+  const handleGenerateFromAnalysis = useCallback(async () => {
+    if (isTransitioningRef.current || isLoading) return;
+
+    isTransitioningRef.current = true;
+    setState("loading");
+
+    setTimeout(() => { isTransitioningRef.current = false; }, 500);
+
+    const result = await generate(url, mode, language);
+    if (result) {
+      setState("presentation");
+    }
+  }, [url, mode, language, generate, isLoading]);
+
+  // ─── Direct generate (legacy, for quick repos that skip analysis) ────────────
+
   const handleGenerate = useCallback(async (overrideUrl?: string) => {
-    // Block if already transitioning or loading
     if (isTransitioningRef.current || isLoading) return;
 
     const targetUrl = overrideUrl || url;
@@ -45,45 +97,58 @@ const Index = () => {
     setUrl(targetUrl);
     setState("loading");
 
-    // Release the guard after the exit animation completes
-    setTimeout(() => {
-      isTransitioningRef.current = false;
-    }, 500);
+    setTimeout(() => { isTransitioningRef.current = false; }, 500);
 
     const result = await generate(targetUrl, mode, language);
-    
     if (result) {
       setState("presentation");
     }
-    // If result is null and error occurred, LoadingState shows the error
-    // with retry/cancel buttons. No stuck state possible.
   }, [url, mode, language, generate, isLoading]);
+
+  // ─── Reset / cancel / retry ──────────────────────────────────────────────────
 
   const handleReset = useCallback(() => {
     isTransitioningRef.current = false;
     setState("input");
     setUrl("");
+    setAnalysisData(null);
     reset();
-  }, [reset]);
+    resetAnalysis();
+  }, [reset, resetAnalysis]);
+
+  const handleRetryAnalysis = useCallback(() => {
+    resetAnalysis();
+    setTimeout(() => { handleAnalyze(); }, 100);
+  }, [handleAnalyze, resetAnalysis]);
+
+  const handleCancelAnalysis = useCallback(() => {
+    isTransitioningRef.current = false;
+    setState("input");
+    resetAnalysis();
+  }, [resetAnalysis]);
 
   const handleRetry = useCallback(() => {
-    // Reset the generating guard before retrying
     reset();
-    // Small delay to allow state to settle before re-generating
-    setTimeout(() => {
-      handleGenerate();
-    }, 100);
+    setTimeout(() => { handleGenerate(); }, 100);
   }, [handleGenerate, reset]);
 
   const handleSelectRepo = useCallback((repoUrl: string) => {
-    handleGenerate(repoUrl);
-  }, [handleGenerate]);
+    handleAnalyze(repoUrl);
+  }, [handleAnalyze]);
 
   const handleCancel = useCallback(() => {
     isTransitioningRef.current = false;
     setState("input");
     reset();
   }, [reset]);
+
+  const handleBackToAnalysis = useCallback(() => {
+    if (analysisData) {
+      setState("analysis-results");
+    } else {
+      handleReset();
+    }
+  }, [analysisData, handleReset]);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -140,13 +205,47 @@ const Index = () => {
 
                   <div className="flex justify-center">
                     <GenerateButton
-                      onClick={() => handleGenerate()}
-                      disabled={!isValidUrl || isLoading}
+                      onClick={() => handleAnalyze()}
+                      disabled={!isValidUrl || isAnalyzing}
                     />
                   </div>
                 </div>
 
                 <QuickRepos onSelectRepo={handleSelectRepo} />
+              </motion.div>
+            )}
+
+            {state === "analyzing" && (
+              <motion.div
+                key="analyzing"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="w-full"
+              >
+                <AnalysisProgress
+                  step={analysisStep}
+                  error={analysisError}
+                  onRetry={handleRetryAnalysis}
+                  onCancel={handleCancelAnalysis}
+                />
+              </motion.div>
+            )}
+
+            {state === "analysis-results" && analysisData && (
+              <motion.div
+                key="analysis-results"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.4 }}
+                className="w-full"
+              >
+                <AnalysisResults
+                  analysis={analysisData}
+                  onGeneratePresentation={handleGenerateFromAnalysis}
+                  onBack={handleReset}
+                />
               </motion.div>
             )}
 
@@ -162,7 +261,7 @@ const Index = () => {
                   step={step}
                   error={error}
                   onRetry={handleRetry}
-                  onCancel={handleCancel}
+                  onCancel={handleBackToAnalysis}
                 />
               </motion.div>
             )}
