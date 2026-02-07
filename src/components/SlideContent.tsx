@@ -32,8 +32,9 @@ export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator 
     hasRepoMedia
   );
 
-  // Only show AI-generated image if there's no rich visualization
+  // Show AI image: full size when no rich viz, compact thumbnail when rich viz present
   const showForegroundImage = hasImage && !hasRichViz;
+  const showCompactImage = hasImage && hasRichViz;
   // Use AI image as subtle background wash only when no rich viz
   const showBackgroundWash = hasImage && !hasRichViz;
 
@@ -57,8 +58,8 @@ export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator 
       )}
 
       <div className="relative z-10 max-w-3xl w-full space-y-3 text-center py-2">
-        {/* Media indicator (hidden in cinema mode) */}
-        {!hideMediaIndicator && (
+        {/* Media indicator (hidden in cinema mode and slide mode — slide mode has its own button) */}
+        {!hideMediaIndicator && isCinemaMode && (
           <div className="flex justify-center">
             <SlideMediaIndicator hasAudio={!!slide.audioUrl} isAutoPlaying={isAutoPlaying} />
           </div>
@@ -99,7 +100,23 @@ export function SlideContent({ slide, isAutoPlaying = false, hideMediaIndicator 
           </motion.div>
         )}
 
-        {/* Repo media gallery (real screenshots/demos from repo) */}
+        {/* Compact AI image — small thumbnail when rich visualizations are present */}
+        {showCompactImage && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 0.7, scale: 1 }}
+            transition={{ delay: 0.3, duration: 0.4 }}
+            className="w-full max-w-[180px] mx-auto rounded-lg overflow-hidden border border-border/10 shadow-md"
+          >
+            <img
+              src={slide.imageUrl}
+              alt={slide.visualDescription || slide.title}
+              className="w-full h-auto max-h-[120px] object-cover"
+              loading="lazy"
+            />
+          </motion.div>
+        )}
+
         {hasRepoMedia && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}

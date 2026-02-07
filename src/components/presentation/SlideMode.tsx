@@ -129,43 +129,48 @@ export function SlideMode({ slides, isActive }: SlideModeProps) {
           </motion.div>
         </AnimatePresence>
 
-        {/* ── Audio controls (top-left) ── */}
-        <div className="absolute top-3 left-4 z-20 flex items-center gap-1.5">
-          {/* Play/Pause narration button */}
-          {slide.audioUrl && (
-            <button
-              onClick={toggleAudio}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg 
-                bg-background/40 backdrop-blur-sm border border-border/20
-                text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {isAudioPlaying ? (
-                <>
-                  <Pause className="w-3.5 h-3.5" />
-                  <span className="text-xs font-mono">Pause</span>
-                  {!isMuted && (
-                    <div className="flex items-center gap-0.5 ml-0.5">
-                      {[0, 1, 2].map((i) => (
-                        <motion.div
-                          key={i}
-                          className="w-0.5 bg-primary rounded-full"
-                          animate={{ height: [3, 10, 3] }}
-                          transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span className="text-xs font-mono">Listen</span>
-                </>
-              )}
-            </button>
-          )}
+        {/* ── Slide counter (top-right) ── */}
+        <div className="absolute top-3 right-4 z-20">
+          <span className="text-xs text-muted-foreground/60 font-mono bg-background/40 backdrop-blur-sm px-2 py-1 rounded-md">
+            {currentSlide + 1} / {slides.length}
+          </span>
+        </div>
+      </div>
 
-          {/* Mute toggle (only visible when audio is playing) */}
+      {/* ── Audio controls (bottom-right, above nav) ── */}
+      {slide.audioUrl && (
+        <div className="absolute bottom-16 right-4 z-20 flex items-center gap-1.5">
+          <button
+            onClick={toggleAudio}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg 
+              bg-background/40 backdrop-blur-sm border border-border/20
+              text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {isAudioPlaying ? (
+              <>
+                <Pause className="w-3.5 h-3.5" />
+                <span className="text-xs font-mono">Pause</span>
+                {!isMuted && (
+                  <div className="flex items-center gap-0.5 ml-0.5">
+                    {[0, 1, 2].map((i) => (
+                      <motion.div
+                        key={i}
+                        className="w-0.5 bg-primary rounded-full"
+                        animate={{ height: [3, 10, 3] }}
+                        transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span className="text-xs font-mono">Listen</span>
+              </>
+            )}
+          </button>
+
           {isAudioPlaying && (
             <button
               onClick={toggleMute}
@@ -177,14 +182,7 @@ export function SlideMode({ slides, isActive }: SlideModeProps) {
             </button>
           )}
         </div>
-
-        {/* ── Slide counter ── */}
-        <div className="absolute top-3 right-4 z-20">
-          <span className="text-xs text-muted-foreground/60 font-mono bg-background/40 backdrop-blur-sm px-2 py-1 rounded-md">
-            {currentSlide + 1} / {slides.length}
-          </span>
-        </div>
-      </div>
+      )}
 
       {/* ── Bottom controls ── */}
       <div className="shrink-0 mt-3 flex items-center justify-between px-2">
