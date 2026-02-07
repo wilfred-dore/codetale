@@ -14,6 +14,7 @@ interface AnalysisResultsProps {
   analysis: RepoAnalysis;
   onGeneratePresentation: () => void;
   onBack: () => void;
+  onBackToPresentation?: () => void;
 }
 
 // Color map for languages
@@ -104,7 +105,7 @@ function ExpandableCard({ title, icon: Icon, children, defaultOpen = false }: {
   );
 }
 
-export function AnalysisResults({ analysis, onGeneratePresentation, onBack }: AnalysisResultsProps) {
+export function AnalysisResults({ analysis, onGeneratePresentation, onBack, onBackToPresentation }: AnalysisResultsProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -272,6 +273,11 @@ export function AnalysisResults({ analysis, onGeneratePresentation, onBack }: An
         <Button variant="outline" onClick={onBack}>
           ← New Analysis
         </Button>
+        {onBackToPresentation && (
+          <Button variant="outline" onClick={onBackToPresentation} className="gap-2">
+            ← Back to Presentation
+          </Button>
+        )}
         <Button onClick={onGeneratePresentation} className="gap-2">
           Generate Presentation
           <ArrowRight className="w-4 h-4" />
