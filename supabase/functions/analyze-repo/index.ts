@@ -237,7 +237,7 @@ Return a JSON object with this EXACT structure:
   "interesting_facts": [
     "string — something surprising or impressive about this codebase"
   ],
-  "mermaid_architecture": "graph TD\\n  A[Component] --> B[Component]\\n  ...",
+  "mermaid_architecture": "graph TD\\n  A[\\"Component Name\\"] --> B[\\"Other Component\\"]\\n  ...",
   "suggested_narrative": {
     "hook": "Opening line to grab attention",
     "chapters": [
@@ -250,7 +250,15 @@ Return a JSON object with this EXACT structure:
     "manager": "Why a PM/CTO would care",
     "investor": "Why this tech matters for business"
   }
-}`;
+}
+
+CRITICAL RULES for "mermaid_architecture":
+- Use QUOTED labels for ALL nodes: A["Label text"] not A[Label text]
+- NEVER use parentheses () inside brackets [] — Mermaid interprets them as shape syntax
+- Use short, clear labels (max 4 words per node)
+- Keep the diagram between 5-12 nodes for readability
+- Use subgraph blocks to group related components
+- Example: graph TD\\n  A["API Gateway"] --> B["Auth Service"]\\n  subgraph Core\\n    B --> C["Database"]\\n  end`;
 
   // AI provider cascade (same as generate-presentation)
   interface AIProvider {

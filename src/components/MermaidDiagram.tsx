@@ -5,6 +5,20 @@ interface MermaidDiagramProps {
   chart: string;
 }
 
+/**
+ * Sanitize Mermaid chart syntax to fix common AI-generated issues:
+ * - Escape parentheses inside node labels: A[Label (thing)] → A["Label (thing)"]
+ * - Fix unquoted special characters
+ */
+function sanitizeMermaidChart(raw: string): string {
+  // Replace node labels containing parentheses: X[...(...)] → X["...(...)"]
+  // Match: identifier[content with parens] but NOT already quoted ["..."]
+  return raw.replace(
+    /(\w+)\[(?!")([^\]]*\([^\]]*)\]/g,
+    (_, id, content) => `${id}["${content}"]`
+  );
+}
+
 export function MermaidDiagram({ chart }: MermaidDiagramProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string>("");
@@ -34,18 +48,38 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
             edgeLabelBackground: "#1e293b",
           },
           fontFamily: "JetBrains Mono, monospace",
-          fontSize: 14,
+          fontSize: 16,
+          flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: "basis",
+            padding: 20,
+            nodeSpacing: 40,
+            rankSpacing: 60,
+          },
         });
 
+        // Try rendering with sanitized chart first
+        const sanitized = sanitizeMermaidChart(chart);
         const id = `mermaid-${Date.now()}`;
-        const { svg: renderedSvg } = await mermaid.render(id, chart);
+
+        let renderedSvg: string;
+        try {
+          const result = await mermaid.render(id, sanitized);
+          renderedSvg = result.svg;
+        } catch (firstErr) {
+          // If sanitized version still fails, the chart is too broken — show fallback
+          console.warn("Mermaid render failed even after sanitization:", firstErr);
+          if (!cancelled) setError(true);
+          return;
+        }
 
         if (!cancelled) {
           setSvg(renderedSvg);
           setError(false);
         }
       } catch (err) {
-        console.error("Mermaid render error:", err);
+        console.error("Mermaid init error:", err);
         if (!cancelled) {
           setError(true);
         }
@@ -57,11 +91,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
   }, [chart]);
 
   if (error) {
-    return (
-      <pre className="text-xs text-muted-foreground bg-secondary/50 rounded-lg p-4 overflow-x-auto">
-        <code>{chart}</code>
-      </pre>
-    );
+    return null; // Hide broken diagrams entirely
   }
 
   if (!svg) {
@@ -79,8 +109,9 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
       transition={{ duration: 0.4 }}
       ref={containerRef}
       className="flex items-center justify-center w-full overflow-x-auto py-4
-        [&_svg]:w-full [&_svg]:min-h-[200px] [&_svg]:max-h-[60vh] [&_svg]:h-auto
-        rounded-xl border border-border/30 bg-secondary/20 p-4"
+        [&_svg]:w-full [&_svg]:min-h-[300px] [&_svg]:max-h-[70vh] [&_svg]:h-auto
+        [&_.nodeLabel]:text-sm [&_.edgeLabel]:text-xs
+        rounded-xl border border-border/30 bg-secondary/20 p-6"
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );
