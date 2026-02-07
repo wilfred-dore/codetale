@@ -14,7 +14,7 @@ export function SlideContent({ slide }: SlideContentProps) {
   const hasImage = !!slide.imageUrl;
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-center px-6 md:px-12 py-8 overflow-y-auto">
+    <div className="relative w-full h-full flex flex-col items-center justify-start px-6 md:px-12 py-4 overflow-y-auto">
       {/* Subtle background image wash */}
       {hasImage && (
         <div className="absolute inset-0 z-0">
@@ -28,7 +28,7 @@ export function SlideContent({ slide }: SlideContentProps) {
         </div>
       )}
 
-      <div className="relative z-10 max-w-3xl w-full space-y-6 text-center">
+      <div className="relative z-10 max-w-3xl w-full space-y-3 text-center py-2">
         {/* Title */}
         <motion.h2
           initial={{ opacity: 0, y: 10 }}
@@ -54,7 +54,7 @@ export function SlideContent({ slide }: SlideContentProps) {
             <img
               src={slide.imageUrl}
               alt={slide.visualDescription || slide.title}
-              className="w-full h-auto object-cover max-h-[280px] md:max-h-[320px]"
+              className="w-full h-auto object-cover max-h-[200px] md:max-h-[260px]"
               loading="lazy"
             />
           </motion.div>
