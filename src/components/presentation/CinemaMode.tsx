@@ -202,7 +202,7 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
             transition={{ duration: 0.6, ease: "easeInOut" }}
             className="absolute inset-0"
           >
-            <SlideContent slide={slide} isAutoPlaying={isPlaying} />
+            <SlideContent slide={slide} isAutoPlaying={isPlaying} hideMediaIndicator />
           </motion.div>
         </AnimatePresence>
       </div>
@@ -328,8 +328,8 @@ export function CinemaMode({ slides, isActive }: CinemaModeProps) {
                     {currentSlide + 1} / {slides.length}
                   </span>
 
-                  {/* Audio wave when playing audio */}
-                  {slide.audioUrl && !isMuted && (
+                  {/* Audio wave — always visible when playing (continuous narration) */}
+                  {!isMuted && (
                     <div className="flex items-center gap-0.5">
                       {[0, 1, 2, 3].map((i) => (
                         <motion.div
