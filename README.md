@@ -5,7 +5,7 @@ Transform GitHub repositories into cinematic stories, interactive slides, and da
 <img src="https://img.shields.io/badge/license-All%20Rights%20Reserved-red" alt="All Rights Reserved" />
 <img src="https://img.shields.io/badge/Built%20with-Lovable-purple" alt="Built with Lovable" />
 
-[📄 View Presentation Slides](slides/CodeTalePresentation.pdf)
+[📄 View presentation slides](slides/CodeTalePresentation.pdf)
 
 **Status:** Hackathon prototype for {Tech: Europe} Paris 2026.
 
@@ -48,6 +48,7 @@ These examples are wired into the UI for one‑click generation.
 | MS-DOS | Cinema / Slides | Origins, architecture, historical impact |
 | Apollo 11 | Cinema / Slides | AGC computer, mission‑critical code |
 | Sorting Algorithms | Slides + Animations | Bubble, merge, quick — animated step by step |
+| Alpic Skybridge | Video Demo | Conversational interface showcase [Watch Video](demo_videos/AlpicSkybridgeDemo.mp4) |
 
 ## 🏗️ Architecture
 ```
