@@ -150,11 +150,6 @@ const Index = () => {
     }
   }, [analysisData, handleReset]);
 
-  const handleViewAnalysis = useCallback(() => {
-    if (analysisData) {
-      setState("analysis-results");
-    }
-  }, [analysisData]);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -292,7 +287,7 @@ const Index = () => {
                 <PresentationViewer
                   presentation={data}
                   onNewStory={handleReset}
-                  onViewAnalysis={analysisData ? handleViewAnalysis : undefined}
+                  analysisData={analysisData}
                 />
               </motion.div>
             )}
