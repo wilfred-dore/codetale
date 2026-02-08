@@ -1,24 +1,22 @@
-# CodeTale — Dify Workflow DSL
 app:
-  description: "Analyze a GitHub repository and generate a structured slide-presentation JSON."
+  name: CodeTale - Git Repo Analyzer
+  description: Analyzes a GitHub repo and generates structured presentation content
+  mode: workflow
   icon: ""
-  icon_background: "#FFEAD5"
-  mode: "workflow"
-  name: "CodeTale — Repo to Slides"
+  icon_background: "#F1F5F9"
   use_icon_as_answer_icon: false
 
 dependencies: []
 
-kind: "app"
+kind: app
 version: "0.5.0"
 
 workflow:
   conversation_variables: []
-  # Set GITHUB_TOKEN in Dify workflow variables after import
   environment_variables:
-    - name: "GITHUB_TOKEN"
+    - name: GITHUB_TOKEN
       value: ""
-      value_type: "secret"
+      value_type: secret
 
   features:
     file_upload:
@@ -55,44 +53,92 @@ workflow:
 
   graph:
     edges:
-      - id: "start_to_parse_fetch"
+      - id: "start_to_parse"
         source: "start_node"
         sourceHandle: "source"
-        target: "parse_fetch_node"
+        target: "parse_url_node"
         targetHandle: "target"
         type: "custom"
         data:
           isInIteration: false
           isInLoop: false
-          sourceType: "start"
-          targetType: "code"
+          sourceType: start
+          targetType: code
 
-      - id: "parse_fetch_to_llm"
-        source: "parse_fetch_node"
+      - id: "parse_to_tree"
+        source: "parse_url_node"
         sourceHandle: "source"
-        target: "llm_node"
+        target: "fetch_tree_node"
         targetHandle: "target"
         type: "custom"
         data:
           isInIteration: false
           isInLoop: false
-          sourceType: "code"
-          targetType: "llm"
+          sourceType: code
+          targetType: code
 
-      - id: "llm_to_validate"
-        source: "llm_node"
+      - id: "tree_to_key"
+        source: "fetch_tree_node"
         sourceHandle: "source"
-        target: "validate_node"
+        target: "fetch_key_node"
         targetHandle: "target"
         type: "custom"
         data:
           isInIteration: false
           isInLoop: false
-          sourceType: "llm"
-          targetType: "code"
+          sourceType: code
+          targetType: code
 
-      - id: "validate_to_end"
-        source: "validate_node"
+      - id: "key_to_deepwiki"
+        source: "fetch_key_node"
+        sourceHandle: "source"
+        target: "deepwiki_node"
+        targetHandle: "target"
+        type: "custom"
+        data:
+          isInIteration: false
+          isInLoop: false
+          sourceType: code
+          targetType: code
+
+      - id: "deepwiki_to_analyst"
+        source: "deepwiki_node"
+        sourceHandle: "source"
+        target: "analyst_node"
+        targetHandle: "target"
+        type: "custom"
+        data:
+          isInIteration: false
+          isInLoop: false
+          sourceType: code
+          targetType: llm
+
+      - id: "analyst_to_writer"
+        source: "analyst_node"
+        sourceHandle: "source"
+        target: "writer_node"
+        targetHandle: "target"
+        type: "custom"
+        data:
+          isInIteration: false
+          isInLoop: false
+          sourceType: llm
+          targetType: llm
+
+      - id: "writer_to_validator"
+        source: "writer_node"
+        sourceHandle: "source"
+        target: "validator_node"
+        targetHandle: "target"
+        type: "custom"
+        data:
+          isInIteration: false
+          isInLoop: false
+          sourceType: llm
+          targetType: llm
+
+      - id: "validator_to_end"
+        source: "validator_node"
         sourceHandle: "source"
         target: "end_node"
         targetHandle: "target"
@@ -100,8 +146,8 @@ workflow:
         data:
           isInIteration: false
           isInLoop: false
-          sourceType: "code"
-          targetType: "end"
+          sourceType: llm
+          targetType: end
 
     nodes:
       - id: "start_node"
@@ -114,28 +160,28 @@ workflow:
           y: 0
         width: 260
         height: 110
-        sourcePosition: "right"
-        targetPosition: "left"
+        sourcePosition: right
+        targetPosition: left
         selected: false
         data:
-          title: "Start"
-          desc: "Input GitHub repository URL."
-          type: "start"
+          title: Start
+          desc: Input GitHub repository URL.
+          type: start
           variables:
-            - label: "GitHub Repo URL"
-              variable: "github_repo_url"
-              type: "text-input"
+            - label: GitHub Repo URL
+              variable: repo_url
+              type: text-input
               required: true
               max_length: 300
               options: []
-              placeholder: "https://github.com/vercel/next.js"
+              placeholder: https://github.com/vercel/next.js
               hint: ""
               default: ""
           x-outputs:
-            - name: "github_repo_url"
-              type: "string"
+            - name: repo_url
+              type: string
 
-      - id: "parse_fetch_node"
+      - id: "parse_url_node"
         type: "custom"
         position:
           x: 320
@@ -143,91 +189,24 @@ workflow:
         positionAbsolute:
           x: 320
           y: 0
-        width: 320
-        height: 140
-        sourcePosition: "right"
-        targetPosition: "left"
+        width: 300
+        height: 150
+        sourcePosition: right
+        targetPosition: left
         selected: false
         data:
-          title: "Parse URL & Fetch Tree"
-          desc: "Parse URL, fetch metadata and file tree, sample and fetch contents."
-          type: "code"
-          code_language: "python3"
+          title: "Parse URL"
+          desc: Extract owner and repo from URL.
+          type: code
+          code_language: python3
           code: |
-            import base64
-            import json
-            import os
             import re
-            import time
-            import urllib.request
-            import urllib.error
-            import ssl
 
-            USER_AGENT = "CodeTale"
-            API_ROOT = "https://api.github.com"
-            REQUEST_TIMEOUT = 30  # seconds
-
-            EXCLUDED_DIRS = [
-                "node_modules", "vendor", ".git", "dist", "build", "__pycache__",
-                ".next", ".nuxt", ".cache", "coverage"
-            ]
-            EXCLUDED_EXTS = {
-                ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp", ".bmp",
-                ".woff", ".woff2", ".ttf", ".eot",
-                ".exe", ".dll", ".so", ".dylib", ".wasm", ".pyc", ".class",
-                ".csv", ".xlsx", ".parquet",
-                ".min.js", ".min.css", ".map"
-            }
-            EXCLUDED_FILES = {
-                "package-lock.json", "yarn.lock", "pnpm-lock.yaml"
-            }
-
-            ALWAYS_FILES = {
-                "readme.md", "readme.rst", "readme.txt",
-                "package.json", "pyproject.toml", "cargo.toml", "go.mod",
-                "pom.xml", "build.gradle", "makefile",
-                "dockerfile", "docker-compose.yml", "docker-compose.yaml"
-            }
-
-            CODE_EXTS = {
-                ".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".rs", ".java", ".rb",
-                ".php", ".swift", ".kt", ".c", ".cpp", ".h", ".cs", ".vue", ".svelte"
-            }
-            TEXT_EXTS = {".md", ".yaml", ".yml", ".toml"}
-
-            def api_get(url, token=None):
-                headers = {
-                    "Accept": "application/vnd.github.v3+json",
-                    "User-Agent": USER_AGENT,
-                }
-                if token:
-                    headers["Authorization"] = f"Bearer {token}"
-                req = urllib.request.Request(url, headers=headers)
-                try:
-                    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
-                        return resp.status, resp.read(), resp.headers
-                except ssl.SSLCertVerificationError:
-                    if os.getenv("ALLOW_INSECURE_SSL", "") == "1":
-                        ctx = ssl._create_unverified_context()
-                        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT, context=ctx) as resp:
-                            return resp.status, resp.read(), resp.headers
-                    raise
-                except urllib.error.HTTPError as e:
-                    return e.code, e.read(), e.headers
-                except Exception as e:
-                    raise RuntimeError(f"HTTP error: {e}")
-
-            def parse_repo_url(raw):
-                raw = (raw or "").strip()
+            def parse_repo_url(raw: str):
+                raw = (raw or "").strip().strip("<>\"'")
                 if not raw:
                     raise ValueError("Invalid GitHub URL")
 
-                # Normalize common wrappers
-                raw = raw.strip("<>\"'")
-
-                # Accept SSH or Git URL forms
-                # git@github.com:owner/repo.git
-                # ssh://git@github.com/owner/repo.git
                 if raw.startswith("git@github.com:"):
                     raw = "https://github.com/" + raw.split("git@github.com:", 1)[1]
                 if raw.startswith("ssh://git@github.com/"):
@@ -238,341 +217,446 @@ workflow:
                     if not m:
                         raise ValueError("Invalid GitHub URL")
                     owner, repo = m.group(1), m.group(2)
-                    repo = repo.replace(".git", "")
-                    return owner, repo
-
-                # Shorthand owner/repo
-                if "/" in raw:
+                elif "/" in raw:
                     owner, repo = raw.split("/", 1)
-                    repo = repo.replace(".git", "")
-                    return owner, repo
-
-                raise ValueError("Invalid GitHub URL")
-
-            def is_excluded(path, size):
-                p = path.lower()
-                if any(f"/{d}/" in p or p.startswith(d + "/") for d in EXCLUDED_DIRS):
-                    return "dependency"
-                if p.split("/")[-1] in EXCLUDED_FILES or p.endswith(".lock"):
-                    return "dependency"
-                if any(p.endswith(ext) for ext in EXCLUDED_EXTS):
-                    if any(p.endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp", ".bmp"]):
-                        return "assets"
-                    if any(p.endswith(ext) for ext in [".woff", ".woff2", ".ttf", ".eot"]):
-                        return "assets"
-                    if any(p.endswith(ext) for ext in [".min.js", ".min.css", ".map"]):
-                        return "generated"
-                    if any(p.endswith(ext) for ext in [".exe", ".dll", ".so", ".dylib", ".wasm", ".pyc", ".class"]):
-                        return "binary"
-                    if any(p.endswith(ext) for ext in [".csv", ".xlsx", ".parquet"]):
-                        return "data"
-                    return "other"
-                if size is not None and size > 100000:
-                    return "generated"
-                return None
-
-            def always_include(path):
-                name = path.split("/")[-1].lower()
-                if name in ALWAYS_FILES:
-                    return True
-                if any(k in name for k in ["schema", "model", "type", "interface", "config"]):
-                    return True
-                depth = path.count("/")
-                if depth <= 1:
-                    return True
-                return False
-
-            def secondary_include(path):
-                p = path.lower()
-                ext = "." + p.split(".")[-1] if "." in p else ""
-                return ext in CODE_EXTS or ext in TEXT_EXTS
-
-            def sort_key(path, tier):
-                depth = path.count("/")
-                lower = path.lower()
-                if depth <= 1:
-                    group = 0
-                elif lower.startswith("src/") or lower.startswith("lib/") or lower.startswith("app/"):
-                    group = 1
                 else:
-                    group = 2
-                return (tier, group, depth, path)
+                    raise ValueError("Invalid GitHub URL")
 
-            def truncate_content(content):
-                lines = content.splitlines()
-                if len(lines) <= 300:
-                    return content, len(lines), False
-                head = lines[:100]
-                tail = lines[-50:]
-                truncated = head + ["... [truncated] ..."] + tail
-                return "\n".join(truncated), len(lines), True
+                repo = repo.replace(".git", "").strip()
+                if not owner or not repo:
+                    raise ValueError("Invalid GitHub URL")
+                return owner, repo
 
-            def fetch_file_content(owner, repo, path, token=None):
-                url = f"{API_ROOT}/repos/{owner}/{repo}/contents/{path}"
-                status, data, _ = api_get(url, token)
-                if status != 200:
-                    raise RuntimeError(f"Failed to fetch file content: {path} ({status})")
-                payload = json.loads(data.decode("utf-8"))
-                if payload.get("encoding") != "base64":
-                    return "", 0, False
-                raw = base64.b64decode(payload.get("content", "").encode("utf-8"))
-                text = raw.decode("utf-8", errors="replace")
-                truncated_text, lines, truncated = truncate_content(text)
-                return truncated_text, lines, truncated
-
-            def main(github_repo_url: str, github_token: str = "") -> dict:
-                owner, repo = parse_repo_url(github_repo_url)
-                token = github_token.strip() if github_token else None
-
-                # Repo metadata
-                status, data, headers = api_get(f"{API_ROOT}/repos/{owner}/{repo}", token)
-                if status == 404:
-                    raise RuntimeError("Repository not found or private.")
-                if status in (403, 429):
-                    raise RuntimeError("GitHub API rate limit exceeded.")
-                if status != 200:
-                    raise RuntimeError(f"GitHub API error: {status}")
-
-                repo_info = json.loads(data.decode("utf-8"))
-                default_branch = repo_info.get("default_branch", "main")
-
-                # Tree
-                tree_url = f"{API_ROOT}/repos/{owner}/{repo}/git/trees/{default_branch}?recursive=1"
-                status, data, _ = api_get(tree_url, token)
-                if status != 200:
-                    raise RuntimeError(f"Tree fetch failed: {status}")
-                tree = json.loads(data.decode("utf-8")).get("tree", [])
-
-                blobs = [t for t in tree if t.get("type") == "blob"]
-                total_files = len(blobs)
-
-                skip_counts = {
-                    "dependency": 0,
-                    "assets": 0,
-                    "generated": 0,
-                    "binary": 0,
-                    "data": 0,
-                    "other": 0
-                }
-
-                candidates = []
-                for b in blobs:
-                    path = b.get("path", "")
-                    size = b.get("size")
-                    reason = is_excluded(path, size)
-                    if reason:
-                        skip_counts[reason] += 1
-                        continue
-                    if always_include(path):
-                        candidates.append((path, 0))
-                    elif secondary_include(path):
-                        candidates.append((path, 1))
-                    else:
-                        skip_counts["other"] += 1
-
-                # Sort candidates
-                candidates.sort(key=lambda x: sort_key(x[0], x[1]))
-                candidate_count = len(candidates)
-
-                if candidate_count < 30:
-                    limit = candidate_count
-                elif candidate_count <= 100:
-                    limit = 25
-                else:
-                    limit = 20
-
-                # Ensure always-include are kept
-                always = [c for c in candidates if c[1] == 0]
-                others = [c for c in candidates if c[1] != 0]
-                selected = always + others[: max(0, limit - len(always))]
-                selected_paths = [p for p, _ in selected]
-
-                # Fetch contents with batching
-                files = []
-                batch_size = 20
-                for i in range(0, len(selected_paths), batch_size):
-                    batch = selected_paths[i:i + batch_size]
-                    for path in batch:
-                        try:
-                            content, lines, truncated = fetch_file_content(owner, repo, path, token)
-                        except Exception:
-                            content, lines, truncated = "", 0, False
-                        files.append({
-                            "path": path,
-                            "content": content,
-                            "lines": lines,
-                            "truncated": truncated
-                        })
-                    if len(selected_paths) > batch_size:
-                        time.sleep(1.0)
-
-                analyzed_files = len(files)
-                skipped_files = max(0, total_files - analyzed_files)
-
-                summary = (
-                    f"Analyzed {analyzed_files}/{total_files} files. "
-                    f"Skipped: {skip_counts['dependency']} dependency files, "
-                    f"{skip_counts['assets']} assets, {skip_counts['generated']} generated/minified files, "
-                    f"{skip_counts['binary']} binaries, {skip_counts['data']} data files."
-                )
-
-                result = {
-                    "owner": owner,
-                    "repo": repo,
-                    "description": repo_info.get("description") or "",
-                    "stars": repo_info.get("stargazers_count", 0),
-                    "language": repo_info.get("language") or "",
-                    "topics": repo_info.get("topics") or [],
-                    "total_files": total_files,
-                    "analyzed_files": analyzed_files,
-                    "skipped_files": skipped_files,
-                    "sampling_summary": summary,
-                    "files": files
-                }
-
+            def main(repo_url: str) -> dict:
+                owner, repo = parse_repo_url(repo_url)
                 return {
-                    "repo_payload_json": json.dumps(result, ensure_ascii=False),
-                    "analyzed_files_count": analyzed_files,
-                    "source_repo_url": github_repo_url
+                    "owner": owner,
+                    "repo": repo
                 }
           variables:
-            - variable: "github_repo_url"
+            - variable: repo_url
               value_selector:
-                - "start_node"
-                - "github_repo_url"
-            - variable: "github_token"
-              value_selector:
-                - "env"
-                - "GITHUB_TOKEN"
+                - start_node
+                - repo_url
           outputs:
-            repo_payload_json:
+            owner:
               type: string
               children: null
-            analyzed_files_count:
-              type: number
-              children: null
-            source_repo_url:
+            repo:
               type: string
               children: null
           x-outputs:
-            - name: "repo_payload_json"
+            - name: owner
               type: string
-            - name: "analyzed_files_count"
-              type: number
-            - name: "source_repo_url"
+            - name: repo
               type: string
 
-      - id: "llm_node"
+      - id: "fetch_tree_node"
         type: "custom"
         position:
-          x: 690
+          x: 650
           y: 0
         positionAbsolute:
-          x: 690
+          x: 650
           y: 0
-        width: 300
-        height: 160
-        sourcePosition: "right"
-        targetPosition: "left"
+        width: 320
+        height: 170
+        sourcePosition: right
+        targetPosition: left
         selected: false
         data:
-          type: "llm"
-          title: "Generate Presentation JSON"
-          desc: "Analyze repo data and return structured slide JSON."
-          # Configure OpenAI API key in Dify → Settings → Model Provider before running
+          title: "Fetch Repo Tree"
+          desc: Fetch metadata, tree, and README.
+          type: code
+          code_language: python3
+          code: |
+            import json
+            import urllib.request
+            import urllib.error
+
+            API_ROOT = "https://api.github.com"
+            REQUEST_TIMEOUT = 30
+            USER_AGENT = "CodeTale"
+
+            def api_get(url, token=None):
+                headers = {
+                    "Accept": "application/vnd.github.v3+json",
+                    "User-Agent": USER_AGENT
+                }
+                if token:
+                    headers["Authorization"] = f"Bearer {token}"
+                req = urllib.request.Request(url, headers=headers)
+                try:
+                    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+                        return resp.status, resp.read()
+                except urllib.error.HTTPError as e:
+                    return e.code, e.read()
+                except Exception as e:
+                    raise RuntimeError(f"HTTP error: {e}")
+
+            def truncate_tree(paths):
+                if len(paths) <= 500:
+                    return paths
+                keep = []
+                top = [p for p in paths if p.count("/") == 0]
+                key_dirs = [p for p in paths if p.startswith("src/") or p.startswith("app/") or p.startswith("lib/")]
+                keep.extend(top)
+                keep.extend(key_dirs[:200])
+                for p in paths:
+                    if p not in keep:
+                        keep.append(p)
+                    if len(keep) >= 500:
+                        break
+                return keep
+
+            def main(owner: str, repo: str, github_token: str = "") -> dict:
+                token = github_token.strip() if github_token else None
+
+                status, data = api_get(f"{API_ROOT}/repos/{owner}/{repo}", token)
+                if status != 200:
+                    raise RuntimeError(f"Repo fetch failed: {status}")
+                info = json.loads(data.decode("utf-8"))
+                default_branch = info.get("default_branch", "main")
+
+                status, data = api_get(f"{API_ROOT}/repos/{owner}/{repo}/git/trees/{default_branch}?recursive=1", token)
+                if status != 200:
+                    raise RuntimeError(f"Tree fetch failed: {status}")
+                tree = json.loads(data.decode("utf-8")).get("tree", [])
+                paths = [t.get("path") for t in tree if t.get("type") == "blob" and t.get("path")]
+                paths = truncate_tree(paths)
+
+                # README (try raw content)
+                readme_text = ""
+                status, data = api_get(f"{API_ROOT}/repos/{owner}/{repo}/readme", token)
+                if status == 200:
+                    try:
+                        payload = json.loads(data.decode("utf-8"))
+                        download_url = payload.get("download_url")
+                        if download_url:
+                            status2, data2 = api_get(download_url, token=None)
+                            if status2 == 200:
+                                readme_text = data2.decode("utf-8", errors="replace")[:3000]
+                    except Exception:
+                        readme_text = ""
+
+                metadata = {
+                    "name": info.get("name", ""),
+                    "description": info.get("description") or "",
+                    "language": info.get("language") or "",
+                    "stars": info.get("stargazers_count", 0),
+                    "topics": info.get("topics") or [],
+                    "default_branch": default_branch
+                }
+
+                return {
+                    "metadata_json": json.dumps(metadata, ensure_ascii=False),
+                    "tree_json": json.dumps(paths, ensure_ascii=False),
+                    "readme": readme_text
+                }
+          variables:
+            - variable: owner
+              value_selector:
+                - parse_url_node
+                - owner
+            - variable: repo
+              value_selector:
+                - parse_url_node
+                - repo
+            - variable: github_token
+              value_selector:
+                - env
+                - GITHUB_TOKEN
+          outputs:
+            metadata_json:
+              type: string
+              children: null
+            tree_json:
+              type: string
+              children: null
+            readme:
+              type: string
+              children: null
+          x-outputs:
+            - name: metadata_json
+              type: string
+            - name: tree_json
+              type: string
+            - name: readme
+              type: string
+
+      - id: "fetch_key_node"
+        type: "custom"
+        position:
+          x: 1000
+          y: 0
+        positionAbsolute:
+          x: 1000
+          y: 0
+        width: 320
+        height: 170
+        sourcePosition: right
+        targetPosition: left
+        selected: false
+        data:
+          title: "Fetch Key Files"
+          desc: Select and fetch key files.
+          type: code
+          code_language: python3
+          code: |
+            import json
+            import urllib.request
+            import urllib.error
+
+            API_ROOT = "https://api.github.com"
+            REQUEST_TIMEOUT = 30
+            USER_AGENT = "CodeTale"
+
+            def api_get(url, token=None):
+                headers = {
+                    "Accept": "application/vnd.github.v3+json",
+                    "User-Agent": USER_AGENT
+                }
+                if token:
+                    headers["Authorization"] = f"Bearer {token}"
+                req = urllib.request.Request(url, headers=headers)
+                try:
+                    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+                        return resp.status, resp.read()
+                except urllib.error.HTTPError as e:
+                    return e.code, e.read()
+                except Exception as e:
+                    raise RuntimeError(f"HTTP error: {e}")
+
+            def pick_key_files(paths):
+                picked = []
+                def add(p):
+                    if p not in picked:
+                        picked.append(p)
+
+                pset = set(paths)
+
+                # Priority 1
+                for name in ["package.json", "Cargo.toml", "pyproject.toml", "go.mod"]:
+                    if name in pset:
+                        add(name)
+
+                # Priority 2
+                for name in ["docker-compose.yml", "Dockerfile"]:
+                    if name in pset:
+                        add(name)
+                for p in paths:
+                    if p.startswith(".github/workflows/") and p.endswith(".yml"):
+                        add(p)
+
+                # Priority 3
+                for p in paths:
+                    lp = p.lower()
+                    if lp.startswith("src/") and ("/main." in lp or "/index." in lp):
+                        add(p)
+                    if lp.startswith("src/lib.") or lp.startswith("app."):
+                        add(p)
+
+                # Priority 4
+                for p in paths:
+                    lp = p.lower()
+                    if "config" in lp or "schema" in lp or "model" in lp:
+                        add(p)
+
+                return picked[:8]
+
+            def fetch_raw(owner, repo, path, token=None):
+                url = f"{API_ROOT}/repos/{owner}/{repo}/contents/{path}"
+                status, data = api_get(url, token)
+                if status != 200:
+                    return ""
+                try:
+                    payload = json.loads(data.decode("utf-8"))
+                    download_url = payload.get("download_url")
+                    if download_url:
+                        status2, data2 = api_get(download_url, token=None)
+                        if status2 == 200:
+                            return data2.decode("utf-8", errors="replace")[:2000]
+                except Exception:
+                    return ""
+                return ""
+
+            def main(tree_json: str, owner: str, repo: str, github_token: str = "") -> dict:
+                token = github_token.strip() if github_token else None
+                try:
+                    paths = json.loads(tree_json)
+                except Exception:
+                    paths = []
+
+                selected = pick_key_files(paths)
+                key_files = []
+                for p in selected:
+                    content = fetch_raw(owner, repo, p, token)
+                    key_files.append({"path": p, "content": content})
+
+                return {"key_files_json": json.dumps(key_files, ensure_ascii=False)}
+          variables:
+            - variable: tree_json
+              value_selector:
+                - fetch_tree_node
+                - tree_json
+            - variable: owner
+              value_selector:
+                - parse_url_node
+                - owner
+            - variable: repo
+              value_selector:
+                - parse_url_node
+                - repo
+            - variable: github_token
+              value_selector:
+                - env
+                - GITHUB_TOKEN
+          outputs:
+            key_files_json:
+              type: string
+              children: null
+          x-outputs:
+            - name: key_files_json
+              type: string
+
+      - id: "deepwiki_node"
+        type: "custom"
+        position:
+          x: 1350
+          y: 0
+        positionAbsolute:
+          x: 1350
+          y: 0
+        width: 320
+        height: 170
+        sourcePosition: right
+        targetPosition: left
+        selected: false
+        data:
+          title: "DeepWiki Enrichment"
+          desc: Fetch summary from DeepWiki with graceful fallback.
+          type: code
+          code_language: python3
+          code: |
+            import json
+            import urllib.request
+            import urllib.error
+
+            REQUEST_TIMEOUT = 20
+
+            def api_get(url):
+                req = urllib.request.Request(url, headers={"Accept": "application/json"})
+                try:
+                    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+                        return resp.status, resp.read()
+                except urllib.error.HTTPError as e:
+                    return e.code, e.read()
+                except Exception:
+                    return 0, b""
+
+            def main(owner: str, repo: str) -> dict:
+                url = f"https://deepwiki.com/api/wiki/{owner}/{repo}/summary"
+                status, data = api_get(url)
+                if status != 200:
+                    return {"deepwiki": None}
+                try:
+                    payload = json.loads(data.decode("utf-8"))
+                    summary = payload.get("summary") or payload.get("text") or ""
+                    if not summary:
+                        return {"deepwiki": None}
+                    return {"deepwiki": summary}
+                except Exception:
+                    return {"deepwiki": None}
+          variables:
+            - variable: owner
+              value_selector:
+                - parse_url_node
+                - owner
+            - variable: repo
+              value_selector:
+                - parse_url_node
+                - repo
+          outputs:
+            deepwiki:
+              type: string
+              children: null
+          x-outputs:
+            - name: deepwiki
+              type: string
+
+      - id: "analyst_node"
+        type: "custom"
+        position:
+          x: 1700
+          y: 0
+        positionAbsolute:
+          x: 1700
+          y: 0
+        width: 320
+        height: 200
+        sourcePosition: right
+        targetPosition: left
+        selected: false
+        data:
+          type: llm
+          title: "Agent 1: Code Analyst"
+          desc: Structured analysis of repo.
           model:
             provider: "langgenius/openai/openai"
-            name: "gpt-4o"
-            mode: "chat"
+            name: gpt-4o
+            mode: chat
             completion_params:
-              temperature: 0.2
+              temperature: 0.3
           prompt_template:
-            - id: "system_prompt"
-              role: "system"
-              text: |+
-                You are CodeTale, an expert code analyst that creates engaging presentations about software projects.
-                You receive a JSON object containing repository metadata and file contents from a GitHub repo.
-                Your job: analyze everything and produce a structured JSON for a slide presentation.
-                OUTPUT FORMAT — Return ONLY valid JSON, no markdown, no explanation:
+            - id: system
+              role: system
+              text: |-
+                You are a senior software architect. Analyze the following GitHub repository data and produce a structured analysis.
+
+                INPUT:
+                - Repo metadata (name, description, language, stars, topics)
+                - File tree
+                - README excerpt
+                - Key file contents
+                - DeepWiki summary (may be null)
+
+                OUTPUT a JSON object with:
                 {
-                  "title": "Project Name — One-line description",
-                  "subtitle": "What this project does in plain English",
-                  "totalSlides": 8,
-                  "slides": [
-                    {
-                      "id": 1,
-                      "type": "title",
-                      "title": "Project Name",
-                      "subtitle": "Tagline",
-                      "bullets": ["star count", "main language", "license"],
-                      "speakerNotes": "Introduction to the project..."
-                    },
-                    {
-                      "id": 2,
-                      "type": "overview",
-                      "title": "What Problem Does It Solve?",
-                      "bullets": ["problem 1", "problem 2", "problem 3"],
-                      "speakerNotes": "..."
-                    },
-                    {
-                      "id": 3,
-                      "type": "architecture",
-                      "title": "Architecture & Tech Stack",
-                      "bullets": ["tech 1", "tech 2", "tech 3"],
-                      "diagram_description": "A text description of the architecture for rendering",
-                      "speakerNotes": "..."
-                    },
-                    {
-                      "id": 4,
-                      "type": "code_highlight",
-                      "title": "Key Code Pattern",
-                      "code_snippet": "actual code from the repo, max 15 lines",
-                      "language": "typescript",
-                      "explanation": "Why this code is interesting",
-                      "speakerNotes": "..."
-                    },
-                    {
-                      "id": 5,
-                      "type": "features",
-                      "title": "Key Features",
-                      "bullets": ["feature 1 — explanation", "feature 2 — explanation", "feature 3 — explanation"],
-                      "speakerNotes": "..."
-                    },
-                    {
-                      "id": 6,
-                      "type": "code_highlight",
-                      "title": "Another Interesting Pattern",
-                      "code_snippet": "...",
-                      "language": "...",
-                      "explanation": "...",
-                      "speakerNotes": "..."
-                    },
-                    {
-                      "id": 7,
-                      "type": "stats",
-                      "title": "Project Health & Stats",
-                      "bullets": ["files analyzed: X/Y", "main language: Z", "code patterns found: ..."],
-                      "speakerNotes": "..."
-                    },
-                    {
-                      "id": 8,
-                      "type": "conclusion",
-                      "title": "Key Takeaways",
-                      "bullets": ["takeaway 1", "takeaway 2", "takeaway 3"],
-                      "speakerNotes": "..."
-                    }
+                  "project_name": "...",
+                  "tagline": "one-line description",
+                  "primary_language": "...",
+                  "tech_stack": ["list", "of", "technologies"],
+                  "architecture_type": "monolith|microservices|library|cli|fullstack|other",
+                  "key_components": [
+                    { "name": "...", "purpose": "...", "files": ["..."] }
+                  ],
+                  "data_flow": "description of how data flows through the system",
+                  "design_patterns": ["list", "of", "patterns detected"],
+                  "complexity_score": 1-10,
+                  "notable_features": ["...", "..."],
+                  "suggested_diagrams": [
+                    { "type": "architecture|sequence|flow|class|er", "description": "what it should show" }
                   ]
                 }
-                RULES:
-                - Always 7-10 slides
-                - Always include at least 2 code_highlight slides with REAL code from the files provided
-                - Make it engaging, not boring — imagine presenting to developers
-                - Speaker notes should be 2-3 sentences each
-                - If the repo is a well-known project, mention what makes it special
-                - Use the sampling_summary to mention how thorough the analysis was
-            - id: "user_prompt"
-              role: "user"
-              text: "{{#parse_fetch_node.repo_payload_json#}}"
+
+                Be precise. Only include what you can confirm from the code.
+            - id: user
+              role: user
+              text: |-
+                Repo metadata JSON:
+                {{#fetch_tree_node.metadata_json#}}
+
+                File tree JSON:
+                {{#fetch_tree_node.tree_json#}}
+
+                README excerpt:
+                {{#fetch_tree_node.readme#}}
+
+                Key files JSON:
+                {{#fetch_key_node.key_files_json#}}
+
+                DeepWiki summary:
+                {{#deepwiki_node.deepwiki#}}
           context:
             enabled: false
             variable_selector: []
@@ -580,132 +664,194 @@ workflow:
           vision:
             enabled: false
           x-outputs:
-            - name: "text"
+            - name: text
               type: string
           x-io-contracts:
             fixed_outputs:
-              - name: "text"
+              - name: text
                 type: string
 
-      - id: "validate_node"
+      - id: "writer_node"
         type: "custom"
         position:
-          x: 1040
+          x: 2050
           y: 0
         positionAbsolute:
-          x: 1040
+          x: 2050
           y: 0
         width: 320
-        height: 150
-        sourcePosition: "right"
-        targetPosition: "left"
+        height: 200
+        sourcePosition: right
+        targetPosition: left
         selected: false
         data:
-          title: "Validate & Clean Output"
-          desc: "Parse JSON, validate, add metadata, and return final JSON."
-          type: "code"
-          code_language: "python3"
-          code: |
-            import json
-            import re
-            from datetime import datetime
+          type: llm
+          title: "Agent 2: Presentation Script Writer"
+          desc: Create presentation JSON.
+          model:
+            provider: "langgenius/openai/openai"
+            name: gpt-4o
+            mode: chat
+            completion_params:
+              temperature: 0.7
+          prompt_template:
+            - id: system
+              role: system
+              text: |-
+                You are a world-class tech conference speaker and storytelling expert.
+                Transform the code analysis into a compelling presentation script.
 
-            def strip_fences(text: str) -> str:
-                t = text.strip()
-                if t.startswith("```"):
-                    t = re.sub(r"^```[a-zA-Z0-9]*\\n", "", t)
-                    t = re.sub(r"```$", "", t).strip()
-                return t
+                INPUT: The code analysis JSON from the previous step.
 
-            def main(llm_text: str, source_repo_url: str, analyzed_files_count: int) -> dict:
-                raw = llm_text or ""
-                cleaned = strip_fences(raw)
-
-                try:
-                    data = json.loads(cleaned)
-                except Exception:
-                    return {
-                        "final_json": json.dumps({
-                            "error": True,
-                            "message": "Failed to parse AI response",
-                            "raw": cleaned[:500]
-                        }, ensure_ascii=False)
+                OUTPUT a JSON object:
+                {
+                  "title": "...",
+                  "subtitle": "...",
+                  "total_slides": N,
+                  "estimated_duration_minutes": N,
+                  "narrative_arc": "hook → context → deep-dive → wow-moment → takeaway",
+                  "slides": [
+                    {
+                      "slide_number": 1,
+                      "slide_type": "title|intro|architecture|code|diagram|comparison|quote|takeaway|outro",
+                      "title": "...",
+                      "speaker_notes": "what to say (2-3 sentences)",
+                      "content": {
+                        "bullets": ["...", "..."],
+                        "code_snippet": { "language": "...", "code": "..." },
+                        "diagram": { "type": "mermaid|flowchart|sequence", "spec": "..." },
+                        "image_prompt": "description for AI image generation if needed",
+                        "visual_suggestion": "what visual/animation to show"
+                      },
+                      "transition": "fade|slide|zoom|none",
+                      "mood": "inspiring|technical|humorous|dramatic"
                     }
-
-                # Validate required fields
-                if not isinstance(data, dict) or "title" not in data or "slides" not in data:
-                    return {
-                        "final_json": json.dumps({
-                            "error": True,
-                            "message": "Missing required fields in AI response",
-                            "raw": cleaned[:500]
-                        }, ensure_ascii=False)
-                    }
-
-                slides = data.get("slides", [])
-                if isinstance(slides, list):
-                    data["totalSlides"] = len(slides)
-
-                # Add metadata
-                data["generated_at"] = datetime.utcnow().isoformat() + "Z"
-                data["source_repo"] = source_repo_url
-                data["generator"] = "CodeTale v1.0 — Dify + GPT-4o"
-                data["analyzed_files_count"] = analyzed_files_count
-
-                return {
-                    "final_json": json.dumps(data, ensure_ascii=False, indent=2)
+                  ]
                 }
-          variables:
-            - variable: "llm_text"
-              value_selector:
-                - "llm_node"
-                - "text"
-            - variable: "source_repo_url"
-              value_selector:
-                - "parse_fetch_node"
-                - "source_repo_url"
-            - variable: "analyzed_files_count"
-              value_selector:
-                - "parse_fetch_node"
-                - "analyzed_files_count"
-          outputs:
-            final_json:
-              type: string
-              children: null
+
+                RULES:
+                - Generate 8-15 slides
+                - Start with a HOOK (surprising fact or question about the project)
+                - Include at least 1 architecture diagram (Mermaid syntax)
+                - Include at least 1 code snippet from the actual repo
+                - Include at least 1 "wow moment" slide
+                - End with actionable takeaways
+                - Speaker notes should be natural, conversational
+                - Vary slide types — never 3 bullet slides in a row
+            - id: user
+              role: user
+              text: |-
+                {{#analyst_node.text#}}
+          context:
+            enabled: false
+            variable_selector: []
+          variables: []
+          vision:
+            enabled: false
           x-outputs:
-            - name: "final_json"
+            - name: text
               type: string
+          x-io-contracts:
+            fixed_outputs:
+              - name: text
+                type: string
+
+      - id: "validator_node"
+        type: "custom"
+        position:
+          x: 2400
+          y: 0
+        positionAbsolute:
+          x: 2400
+          y: 0
+        width: 320
+        height: 200
+        sourcePosition: right
+        targetPosition: left
+        selected: false
+        data:
+          type: llm
+          title: "Agent 3: Quality Validator"
+          desc: Validate and fix presentation JSON.
+          model:
+            provider: "langgenius/openai/openai"
+            name: gpt-4o
+            mode: chat
+            completion_params:
+              temperature: 0.2
+          prompt_template:
+            - id: system
+              role: system
+              text: |-
+                You are a QA editor for technical presentations.
+
+                Validate the presentation JSON and fix any issues.
+
+                CHECK:
+                1. All Mermaid diagram specs are syntactically valid
+                2. No slide has more than 5 bullets
+                3. Code snippets have correct language tags
+                4. Speaker notes are present for every slide
+                5. slide_number is sequential
+                6. JSON is valid and complete
+                7. At least 1 diagram slide exists
+                8. At least 1 code slide exists
+                9. Total slides between 8 and 15
+                10. No placeholder text like "TODO" or "..."
+
+                If issues found: fix them and output the corrected JSON.
+                If no issues: output the JSON unchanged.
+
+                OUTPUT: the final validated presentation JSON (same schema as input).
+                Add a top-level field: "validation": { "passed": true/false, "fixes_applied": ["..."] }
+            - id: user
+              role: user
+              text: |-
+                {{#writer_node.text#}}
+          context:
+            enabled: false
+            variable_selector: []
+          variables: []
+          vision:
+            enabled: false
+          x-outputs:
+            - name: text
+              type: string
+          x-io-contracts:
+            fixed_outputs:
+              - name: text
+                type: string
 
       - id: "end_node"
         type: "custom"
         position:
-          x: 1410
+          x: 2750
           y: 0
         positionAbsolute:
-          x: 1410
+          x: 2750
           y: 0
         width: 260
         height: 110
-        sourcePosition: "right"
-        targetPosition: "left"
+        sourcePosition: right
+        targetPosition: left
         selected: false
         data:
-          title: "Output"
-          desc: "Return final JSON."
-          type: "end"
+          title: Output
+          desc: Return final JSON.
+          type: end
           outputs:
-            - variable: "presentation_json"
+            - variable: final_json
               value_selector:
-                - "validate_node"
-                - "final_json"
-              value_type: "string"
+                - validator_node
+                - text
+              value_type: string
           x-outputs:
-            - name: "presentation_json"
+            - name: final_json
               type: string
 
     viewport:
       x: 0
       y: 0
-      zoom: 1.0
+      zoom: 1
 
   rag_pipeline_variables: []
