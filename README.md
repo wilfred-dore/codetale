@@ -418,6 +418,7 @@ CodeTale includes a **Skybridge ChatGPT App** that lets you interact with CodeTa
 
 ### ✅ Latest Features (v2)
 - **Visual Architecture Diagrams**: Repositories now display interactive Mermaid diagrams directly in the chat interface.
+- **🎉 ChatGPT App Deployed with Alpic Skybridge!** Successfully deployed 2 minutes before submission deadline 🏁
 
 🚀 **Production URL:** [https://codetale-skybridge-a-24b76a95.alpic.live/try](https://codetale-skybridge-a-24b76a95.alpic.live/try)
 
