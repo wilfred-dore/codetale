@@ -161,6 +161,7 @@ workflow:
             import time
             import urllib.request
             import urllib.error
+            import ssl
 
             USER_AGENT = "CodeTale"
             API_ROOT = "https://api.github.com"
@@ -205,24 +206,47 @@ workflow:
                 try:
                     with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
                         return resp.status, resp.read(), resp.headers
+                except ssl.SSLCertVerificationError:
+                    if os.getenv("ALLOW_INSECURE_SSL", "") == "1":
+                        ctx = ssl._create_unverified_context()
+                        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT, context=ctx) as resp:
+                            return resp.status, resp.read(), resp.headers
+                    raise
                 except urllib.error.HTTPError as e:
                     return e.code, e.read(), e.headers
                 except Exception as e:
                     raise RuntimeError(f"HTTP error: {e}")
 
             def parse_repo_url(raw):
-                raw = raw.strip()
-                if raw.startswith("http"):
-                    m = re.search(r"github\\.com/([^/]+)/([^/#?]+)", raw)
+                raw = (raw or "").strip()
+                if not raw:
+                    raise ValueError("Invalid GitHub URL")
+
+                # Normalize common wrappers
+                raw = raw.strip("<>\"'")
+
+                # Accept SSH or Git URL forms
+                # git@github.com:owner/repo.git
+                # ssh://git@github.com/owner/repo.git
+                if raw.startswith("git@github.com:"):
+                    raw = "https://github.com/" + raw.split("git@github.com:", 1)[1]
+                if raw.startswith("ssh://git@github.com/"):
+                    raw = "https://github.com/" + raw.split("ssh://git@github.com/", 1)[1]
+
+                if "github.com" in raw:
+                    m = re.search(r"github\.com[:/]+([^/]+)/([^/#?]+)", raw)
                     if not m:
                         raise ValueError("Invalid GitHub URL")
                     owner, repo = m.group(1), m.group(2)
                     repo = repo.replace(".git", "")
                     return owner, repo
+
+                # Shorthand owner/repo
                 if "/" in raw:
                     owner, repo = raw.split("/", 1)
                     repo = repo.replace(".git", "")
                     return owner, repo
+
                 raise ValueError("Invalid GitHub URL")
 
             def is_excluded(path, size):

@@ -9,10 +9,10 @@
 <img src="https://img.shields.io/badge/Voice-Gradium-orange" alt="Gradium" />
 <img src="https://img.shields.io/badge/ChatGPT%20App-Alpic%20Skybridge-teal" alt="Alpic Skybridge" />
 
-[📄 View presentation slides](documentation/CodeTalePitchPresentation.pdf)
+[📄 View presentation slides](slides/CodeTalePresentation.pdf)
 [📹 Watch Deep Dive Video](demo_videos/AlpicSkybridgeDemo.mp4)
 
-> 🏆 **{Tech: Europe} Paris AI Hackathon 2026** — Built in 48 hours in Paris.
+> 🏆 **{Tech: Europe} Paris AI Hackathon 2026** — Built in 48 hours at NeonNoir, Paris.
 
 ---
 
@@ -154,13 +154,12 @@ Developers struggle to:
 | 3 | **[fal.ai](https://fal.ai)** | flux/dev model for generating minimalist slide illustrations when no rich visualization (Mermaid, chart, code animation) is available. | Generative Media |
 | 4 | **[Gradium](https://gradium.ai)** | Text‑to‑speech narration in 3 languages (English, French, German). Powers continuous Cinema Mode voiceover and per‑slide audio in Slide Mode. | Voice AI |
 | 5 | **[Alpic Skybridge](https://alpic.ai)** | ChatGPT App integration — analyze repos, compare projects, generate pitch decks directly inside ChatGPT via MCP. | ChatGPT Apps |
-| 6 | **[Dify](https://dify.ai)** | Multi‑agent orchestration (in progress) for advanced analysis pipelines. | AI Agents |
+| 6 | **[Dify](https://dify.ai)** | Multi‑agent orchestration planned for advanced analysis pipelines. | AI Agents |
 | 7 | **[Dust](https://dust.tt)** | Private multi‑repository analysis for enterprise use cases (exploring). | AI Platform |
 
 ### Additional Technologies
 | Technology | Role |
 |------------|------|
-| [OpenAI Codex](https://openai.com/index/openai-codex/) | Code understanding and generation for repository analysis |
 | [DeepWiki](https://deepwiki.com) | AI‑analyzed documentation for deeper architectural context |
 | [ZeroML/ZML](https://zml.ai) | High‑performance inference exploration |
 | [Recharts](https://recharts.org) | Animated data visualizations |
