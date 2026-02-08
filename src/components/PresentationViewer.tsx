@@ -48,6 +48,13 @@ export function PresentationViewer({ presentation, onNewStory, analysisData }: P
     return () => window.removeEventListener("keydown", handler);
   }, [toggleFullscreen]);
 
+  // ── Auto-fullscreen when a view mode is selected ──
+  useEffect(() => {
+    if (viewMode && !document.fullscreenElement && containerRef.current) {
+      containerRef.current.requestFullscreen().catch(() => {});
+    }
+  }, [viewMode]);
+
   // ── Export as standalone HTML ──
   const handleDownloadHTML = useCallback(() => {
     const slidesHTML = slides
