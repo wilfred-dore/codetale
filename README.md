@@ -9,9 +9,9 @@
 <img src="https://img.shields.io/badge/Voice-Gradium-orange" alt="Gradium" />
 <img src="https://img.shields.io/badge/ChatGPT%20App-Alpic%20Skybridge-teal" alt="Alpic Skybridge" />
 
-[📄 View pitch deck](documentation/CodeTalePitchPresentation.pdf)
-[🎬 Watch 2-min demo](https://www.youtube.com/watch?v=INPmugJWCrw) • [🔍 Alpic Skybridge analysis demo](https://github.com/wilfred-dore/codetale/blob/main/demo_videos/AlpicSkybridgeDemo.mp4)
 [🚀 Try it live](https://codetale-wdore.lovable.app) • [🌉 Test Alpic Skybridge](https://codetale-skybridge-a-24b76a95.alpic.live/try) • ChatGPT App in progress
+[📄 View pitch deck](documentation/CodeTalePitchPresentation.pdf)
+[🎬 Watch 2-min video demo](https://www.youtube.com/watch?v=INPmugJWCrw) *(old version)* • [See all demos](#-demo-gallery)
 
 > ⚠️ **WARNING**: The demo video was recorded before the latest improvements (finer Git analysis, analysis dashboard, Mermaid UML diagrams, latest ChatGPT version, and Alpic Skybridge server).
 
