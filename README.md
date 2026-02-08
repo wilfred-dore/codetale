@@ -354,7 +354,7 @@ npm run dev
 | ✅ MVP | Analysis tab in viewer | Done |
 | ✅ MVP | Public analysis API | Done |
 | ✅ MVP | 3‑level AI cascade (Lovable + OpenAI) | Done |
-| ✅ MVP | Alpic Skybridge ChatGPT App | Done |
+| ✅ MVP | Alpic Skybridge server ready, ChatGPT App in progress | Done |
 | 🔜 Next | Dify multi‑agent orchestration | Planned |
 | 💡 Future | Dust — enterprise multi‑repo analysis | Exploring |
 | 💡 Future | ZML high‑performance inference | Exploring |
