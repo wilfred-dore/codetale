@@ -11,7 +11,7 @@
 
 [📄 View pitch deck](documentation/CodeTalePitchPresentation.pdf)
 [🎬 Watch 2-min demo](https://www.youtube.com/watch?v=INPmugJWCrw) • [🔍 Alpic Skybridge analysis demo](https://github.com/wilfred-dore/codetale/blob/main/demo_videos/AlpicSkybridgeDemo.mp4)
-[🚀 Try it live](https://codetale-wdore.lovable.app)
+[🚀 Try it live](https://codetale-wdore.lovable.app) • [🌉 Test Alpic Skybridge](https://codetale-skybridge-a-24b76a95.alpic.live/try) • ChatGPT App in progress
 
 > ⚠️ **Note**: The demo video was recorded before the latest improvements (finer Git analysis, analysis dashboard, Mermaid UML diagrams, latest ChatGPT version, and Alpic Skybridge server).
 
