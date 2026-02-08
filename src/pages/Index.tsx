@@ -190,7 +190,11 @@ const Index = () => {
         </header>
 
         {/* Content */}
-        <main className="flex-1 flex items-center justify-center px-6 py-12">
+        <main className={`flex-1 flex ${
+          state === "presentation" 
+            ? "flex-col" 
+            : "items-center justify-center px-6 py-12"
+        }`}>
           <AnimatePresence mode="wait">
             {state === "input" && (
               <motion.div
@@ -282,7 +286,7 @@ const Index = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-full h-full"
+                className="w-full flex-1 min-h-0"
               >
                 <PresentationViewer
                   presentation={data}
