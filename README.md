@@ -20,53 +20,95 @@ Developers struggle to:
 
 CodeTale turns repos into presentations in minutes, not hours.
 
-## ✨ What’s Implemented
-This repository contains a working front‑end and a Supabase Edge Function that:
+## ✨ What's Implemented
+This repository contains a working front‑end and backend pipeline that:
 
-- Accepts a GitHub repo URL and fetches metadata, README, and language stats.
-- Generates a 6‑slide narrative using Open AI GPT 5.2 (via the Lovable gateway).
-- Builds visuals with Mermaid diagrams, charts, code animations, and data‑structure steps when appropriate.
-- Synthesizes narration audio with Gradium TTS.
-- Generates slide artwork with fal.ai when no rich visualization is available.
+- Accepts a GitHub repo URL and fetches metadata, README, language stats, and **file tree**.
+- Runs a **deep multi‑step repository analysis** (architecture, patterns, complexity, audience insights) before generating slides.
+- Fetches **DeepWiki** (deepwiki.com) AI‑analyzed documentation for deeper architectural context.
+- **Discovers and classifies repository images** (screenshots, diagrams, architecture visuals) from README and asset folders, prioritizing technical images.
+- Generates a 6‑slide narrative using OpenAI GPT‑5.2 (via the Lovable AI gateway) with a 3‑level provider cascade for reliability.
+- Builds rich visualizations: **Mermaid UML diagrams** (flowcharts, class diagrams, sequence diagrams, state diagrams), **animated charts**, **step‑by‑step code animations**, and **data structure visualizations**.
+- Synthesizes localized narration audio with Gradium TTS (English, French, German).
+- Generates minimalist slide artwork with fal.ai (flux/dev) only when no rich visualization is available.
 - Returns a ready‑to‑play presentation to the UI.
 
 ## 🎬 Features
-- **Cinema Mode**: autoplay slides with continuous narration and cinematic transitions.
-- **Slide Mode**: manual navigation with audio per slide.
-- **Repo‑aware narration**: 6‑slide story arc (hook, overview, architecture, features, code/algorithm, impact).
-- **Mermaid diagrams**: architecture flowcharts generated per repo.
-- **Charts and metrics**: charts when real data exists in the README or GitHub stats.
-- **Code walkthroughs**: step‑by‑step animations for algorithms and key logic.
-- **Media extraction**: uses README images/screenshots when relevant.
-- **Export**: download a standalone HTML presentation.
-- **Language support**: English, French, German.
+
+### Viewing Modes
+- **Cinema Mode** 🎬 *(recommended)*: Autoplay slides with continuous narration, cinematic crossfade transitions, auto‑scrolling content, and Netflix‑style overlay controls. Fully hands‑free experience.
+- **Slide Mode** 📊: Manual navigation with on‑demand audio per slide. Arrow keys, click, or dot indicators to advance.
+- **Analysis Tab** 🔬: Full technical analysis dashboard accessible from the top bar — architecture breakdown, complexity scores, pattern detection, audience‑specific insights (developer, manager, investor), and discovered repository images.
+
+### Smart Repository Analysis
+- **Adaptive file budgeting**: Small repos (<30 files): all scanned. Medium (30–100): top 25. Large (>100): top 20.
+- **6‑tier file prioritization**: Identity → Config → Entry Points → Keywords → Shallow Source → Deep Source.
+- **Smart truncation**: Files >300 lines keep first 100 + last 50 lines for optimal LLM context.
+- **Image discovery**: Extracts images from README markdown (`![](url)`, `<img>` tags) and asset folders (`docs/`, `assets/`, `.github/`). Classifies images as `likely_technical` using keyword matching (architecture, diagram, flow, schema…).
+- **DeepWiki integration**: Fetches AI‑analyzed documentation from deepwiki.com for richer architectural context.
+
+### Presentation Engine
+- **6‑slide story arc**: Hook → Overview → Architecture → Features/Data → Code/Algorithm → Impact.
+- **Publication‑quality Mermaid diagrams**: C4‑style subgraphs, sequence diagrams, class diagrams, state diagrams. Diagrams can appear on **multiple slides**, not just architecture. Click‑to‑zoom fullscreen modal.
+- **Animated charts** (Recharts): Bar, Line, Area, Pie, Radar — animated with real repository metrics.
+- **Code stepper**: Progressive line‑by‑line highlighting synced to narration. **Mandatory** on every presentation — shows the core algorithm, interrupt handler, API pattern, or signature code of the repo.
+- **Data structure visualizations**: Animated SVG for Arrays, Trees, Graphs, Stacks, Queues, and Linked Lists with automatic layout.
+- **Ken Burns effect**: Animated zoom/pan on images for dynamic visuals without server‑side video generation.
+- **Repo media integration**: Screenshots, demos, and diagrams from the repository README are used as native slide visuals, prioritized over AI‑generated illustrations.
+- **Smart media hierarchy**: Technical content (repo media, Mermaid, charts, animations) displayed prominently; AI illustrations shown as subtle thumbnails when rich data is present.
+
+### Navigation & UX
+- **Mode selection screen**: Cinema (recommended) and Slides cards after generation. Analysis accessible via top bar tabs.
+- **Tab order**: Analysis → Slides → Cinema in the top navigation bar.
+- **Fullscreen**: Native Fullscreen API with `F` keyboard shortcut.
+- **Auto‑hiding controls**: Overlay controls fade in Cinema Mode after 3 seconds of inactivity.
+- **Export**: Download a standalone HTML presentation file.
+- **Language support**: English 🇬🇧, French 🇫🇷, German 🇩🇪.
+
+### Stability & Reliability
+- **3‑level AI provider cascade**: Lovable AI (GPT‑5.2) → OpenAI Direct (GPT‑4.1) → OpenAI Mini (GPT‑4.1‑mini). Automatic failover on 402/429 errors.
+- **Mermaid rendering stability**: Automated syntax sanitization (quoting labels with parentheses), offscreen rendering to suppress error SVGs.
+- **Concurrency guards**: `isGeneratingRef`, `isTransitioningRef`, 2‑minute safety timeout, `generationIdRef` to prevent state corruption.
+- **Diagram zoom**: Click any Mermaid diagram to open a fullscreen zoomable modal. Escape or backdrop click to close.
+
+### Public API
+- **Endpoint**: `POST /functions/v1/analyze-repo` — public repository analysis API.
+- **Options**: Configurable `max_files`, `target_audience`. Per‑IP rate limit: 10 req/min.
+- **Documentation**: `/api-docs` page with integration examples for cURL, JavaScript, and Python.
 
 ## 🎥 Demo Gallery
 These examples are wired into the UI for one‑click generation.
 
 | Project | Type | Description |
 | --- | --- | --- |
-| MS-DOS | Cinema / Slides | Origins, architecture, historical impact |
-| Apollo 11 | Cinema / Slides | AGC computer, mission‑critical code |
-| Sorting Algorithms | Slides + Animations | Bubble, merge, quick — animated step by step |
+| MS-DOS | Cinema / Slides | Origins, architecture, INT 21h interrupt handler animation |
+| Apollo 11 | Cinema / Slides | AGC computer, mission‑critical code walkthrough |
+| Sorting Algorithms | Slides + Animations | Bubble, merge, quick — animated step by step with data structures |
 | Alpic Skybridge | Video Demo | Conversational interface showcase [Watch Video](demo_videos/AlpicSkybridgeDemo.mp4) |
 
 ## 🏗️ Architecture
 ```
-┌──────────────┐
-│   Frontend   │  Vite + React + TS
-└──────┬───────┘
-       │
-       ├──→ Supabase Edge Function
-       │    ├─ GitHub API (repo + README)
-       │    ├─ Open AI GPT 5.2 via Lovable AI (slide generation)
-       │    ├─ Mermaid (diagrams)
-       │    ├─ Gradium TTS (narration)
-       │    └─ fal.ai (slide imagery)
-       │
-       └──→ Presentation Viewer
-            ├─ Cinema Mode (autoplay)
-            └─ Slide Mode (manual)
+┌──────────────────┐
+│     Frontend     │  Vite + React + TypeScript + Framer Motion
+└────────┬─────────┘
+         │
+         ├──→ analyze-repo (Edge Function)
+         │    ├─ GitHub API (repo tree, README, languages)
+         │    ├─ DeepWiki (AI documentation)
+         │    ├─ Image Discovery & Classification
+         │    └─ Lovable AI / OpenAI (deep analysis)
+         │
+         ├──→ generate-presentation (Edge Function)
+         │    ├─ Lovable AI GPT-5.2 (slide generation)
+         │    │   └─ 3-level provider cascade
+         │    ├─ Mermaid (UML diagrams)
+         │    ├─ Gradium TTS (narration)
+         │    └─ fal.ai (slide imagery fallback)
+         │
+         └──→ Presentation Viewer
+              ├─ Analysis Tab (technical dashboard)
+              ├─ Slide Mode (manual navigation)
+              └─ Cinema Mode (autoplay + narration)
 ```
 
 ## 🧰 Tech Stack
@@ -75,11 +117,13 @@ These examples are wired into the UI for one‑click generation.
 | Frontend | Vite, React, TypeScript |
 | UI | Tailwind CSS, shadcn/ui, Radix UI |
 | Animation | Framer Motion |
-| Data | Recharts, Mermaid |
+| Charts | Recharts |
+| Diagrams | Mermaid (flowchart, sequence, class, state) |
 | Backend | Supabase Edge Functions (Deno) |
-| AI | Lovable AI gateway (OpenAI‑compatible) |
-| Voice | Gradium TTS |
-| Images | fal.ai |
+| AI Models | Lovable AI gateway — GPT‑5.2, GPT‑4.1, GPT‑4.1‑mini |
+| Voice | Gradium TTS (multilingual) |
+| Images | fal.ai (flux/dev) |
+| Analysis | DeepWiki (deepwiki.com) |
 
 
 ## 💬 Conversational Interface (Skybridge)
@@ -123,17 +167,27 @@ npm install
 npm run dev
 ```
 
-4. Deploy the Supabase Edge Function.
+4. Edge Functions expect the following secrets:
 
-- `supabase/functions/generate-presentation` expects:
-- `LOVABLE_API_KEY`
-- `FAL_API_KEY`
-- `GRADIUM_API_KEY`
+| Secret | Purpose |
+| --- | --- |
+| `LOVABLE_API_KEY` | AI slide generation (primary) |
+| `OPENAI_API_KEY` | AI fallback provider |
+| `FAL_API_KEY` | Image generation |
+| `GRADIUM_API_KEY` | TTS narration |
+| `GITHUB_TOKEN` | Private repos & higher rate limits (5,000 req/hr) |
 
 ## 🔄 Roadmap
 | Phase | Feature | Status |
 | --- | --- | --- |
 | MVP | Cinema + Slides generation | ✅ Done |
+| MVP | Deep repository analysis engine | ✅ Done |
+| MVP | Multi‑diagram UML support | ✅ Done |
+| MVP | Code animation (mandatory) | ✅ Done |
+| MVP | Image discovery & classification | ✅ Done |
+| MVP | Diagram zoom modal | ✅ Done |
+| MVP | Analysis tab in viewer | ✅ Done |
+| MVP | Public analysis API | ✅ Done |
 | Next | Dify multi‑agent orchestration | 🔜 Planned |
 | Next | Alpic Skybridge conversational interface | 🔜 Planned |
 | Future | Dust — private multi‑repository analysis for enterprises | 💡 Exploring |
@@ -142,6 +196,7 @@ npm run dev
 - Lovable — full‑stack development platform.
 - OpenAI — model family used via the Lovable gateway.
 - OpenAI Codex — development companion.
+- DeepWiki — AI‑analyzed documentation.
 - fal.ai — image generation.
 - Gradium — narration TTS.
 
