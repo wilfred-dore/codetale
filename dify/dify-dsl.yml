@@ -1,0 +1,689 @@
+```yaml
+# CodeTale — Dify Workflow DSL
+app:
+  description: "Analyze a GitHub repository and generate a structured slide-presentation JSON."
+  icon: ""
+  icon_background: "#FFEAD5"
+  mode: "workflow"
+  name: "CodeTale — Repo to Slides"
+  use_icon_as_answer_icon: false
+
+dependencies: []
+
+kind: "app"
+version: "0.5.0"
+
+workflow:
+  conversation_variables: []
+  # Set GITHUB_TOKEN in Dify workflow variables after import
+  environment_variables:
+    - name: "GITHUB_TOKEN"
+      value: ""
+      value_type: "secret"
+
+  features:
+    file_upload:
+      enabled: false
+      allowed_file_extensions: []
+      allowed_file_types: []
+      allowed_file_upload_methods: []
+      fileUploadConfig:
+        audio_file_size_limit: 0
+        batch_count_limit: 0
+        file_size_limit: 0
+        image_file_size_limit: 0
+        video_file_size_limit: 0
+        workflow_file_upload_limit: 0
+      image:
+        enabled: false
+        number_limits: 0
+        transfer_methods: []
+      number_limits: 0
+    opening_statement: ""
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ""
+      voice: ""
+
+  graph:
+    edges:
+      - id: "start_to_parse_fetch"
+        source: "start_node"
+        sourceHandle: "source"
+        target: "parse_fetch_node"
+        targetHandle: "target"
+        type: "custom"
+        data:
+          isInIteration: false
+          isInLoop: false
+          sourceType: "start"
+          targetType: "code"
+
+      - id: "parse_fetch_to_llm"
+        source: "parse_fetch_node"
+        sourceHandle: "source"
+        target: "llm_node"
+        targetHandle: "target"
+        type: "custom"
+        data:
+          isInIteration: false
+          isInLoop: false
+          sourceType: "code"
+          targetType: "llm"
+
+      - id: "llm_to_validate"
+        source: "llm_node"
+        sourceHandle: "source"
+        target: "validate_node"
+        targetHandle: "target"
+        type: "custom"
+        data:
+          isInIteration: false
+          isInLoop: false
+          sourceType: "llm"
+          targetType: "code"
+
+      - id: "validate_to_end"
+        source: "validate_node"
+        sourceHandle: "source"
+        target: "end_node"
+        targetHandle: "target"
+        type: "custom"
+        data:
+          isInIteration: false
+          isInLoop: false
+          sourceType: "code"
+          targetType: "end"
+
+    nodes:
+      - id: "start_node"
+        type: "custom"
+        position:
+          x: 0
+          y: 0
+        positionAbsolute:
+          x: 0
+          y: 0
+        width: 260
+        height: 110
+        sourcePosition: "right"
+        targetPosition: "left"
+        selected: false
+        data:
+          title: "Start"
+          desc: "Input GitHub repository URL."
+          type: "start"
+          variables:
+            - label: "GitHub Repo URL"
+              variable: "github_repo_url"
+              type: "text-input"
+              required: true
+              max_length: 300
+              options: []
+              placeholder: "https://github.com/vercel/next.js"
+              hint: ""
+              default: ""
+          x-outputs:
+            - name: "github_repo_url"
+              type: "string"
+
+      - id: "parse_fetch_node"
+        type: "custom"
+        position:
+          x: 320
+          y: 0
+        positionAbsolute:
+          x: 320
+          y: 0
+        width: 320
+        height: 140
+        sourcePosition: "right"
+        targetPosition: "left"
+        selected: false
+        data:
+          title: "Parse URL & Fetch Tree"
+          desc: "Parse URL, fetch metadata and file tree, sample and fetch contents."
+          type: "code"
+          code_language: "python3"
+          code: |
+            import base64
+            import json
+            import os
+            import re
+            import time
+            import urllib.request
+            import urllib.error
+
+            USER_AGENT = "CodeTale"
+            API_ROOT = "https://api.github.com"
+            REQUEST_TIMEOUT = 30  # seconds
+
+            EXCLUDED_DIRS = [
+                "node_modules", "vendor", ".git", "dist", "build", "__pycache__",
+                ".next", ".nuxt", ".cache", "coverage"
+            ]
+            EXCLUDED_EXTS = {
+                ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp", ".bmp",
+                ".woff", ".woff2", ".ttf", ".eot",
+                ".exe", ".dll", ".so", ".dylib", ".wasm", ".pyc", ".class",
+                ".csv", ".xlsx", ".parquet",
+                ".min.js", ".min.css", ".map"
+            }
+            EXCLUDED_FILES = {
+                "package-lock.json", "yarn.lock", "pnpm-lock.yaml"
+            }
+
+            ALWAYS_FILES = {
+                "readme.md", "readme.rst", "readme.txt",
+                "package.json", "pyproject.toml", "cargo.toml", "go.mod",
+                "pom.xml", "build.gradle", "makefile",
+                "dockerfile", "docker-compose.yml", "docker-compose.yaml"
+            }
+
+            CODE_EXTS = {
+                ".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".rs", ".java", ".rb",
+                ".php", ".swift", ".kt", ".c", ".cpp", ".h", ".cs", ".vue", ".svelte"
+            }
+            TEXT_EXTS = {".md", ".yaml", ".yml", ".toml"}
+
+            def api_get(url, token=None):
+                headers = {
+                    "Accept": "application/vnd.github.v3+json",
+                    "User-Agent": USER_AGENT,
+                }
+                if token:
+                    headers["Authorization"] = f"Bearer {token}"
+                req = urllib.request.Request(url, headers=headers)
+                try:
+                    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+                        return resp.status, resp.read(), resp.headers
+                except urllib.error.HTTPError as e:
+                    return e.code, e.read(), e.headers
+                except Exception as e:
+                    raise RuntimeError(f"HTTP error: {e}")
+
+            def parse_repo_url(raw):
+                raw = raw.strip()
+                if raw.startswith("http"):
+                    m = re.search(r"github\\.com/([^/]+)/([^/#?]+)", raw)
+                    if not m:
+                        raise ValueError("Invalid GitHub URL")
+                    owner, repo = m.group(1), m.group(2)
+                    repo = repo.replace(".git", "")
+                    return owner, repo
+                if "/" in raw:
+                    owner, repo = raw.split("/", 1)
+                    repo = repo.replace(".git", "")
+                    return owner, repo
+                raise ValueError("Invalid GitHub URL")
+
+            def is_excluded(path, size):
+                p = path.lower()
+                if any(f"/{d}/" in p or p.startswith(d + "/") for d in EXCLUDED_DIRS):
+                    return "dependency"
+                if p.split("/")[-1] in EXCLUDED_FILES or p.endswith(".lock"):
+                    return "dependency"
+                if any(p.endswith(ext) for ext in EXCLUDED_EXTS):
+                    if any(p.endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp", ".bmp"]):
+                        return "assets"
+                    if any(p.endswith(ext) for ext in [".woff", ".woff2", ".ttf", ".eot"]):
+                        return "assets"
+                    if any(p.endswith(ext) for ext in [".min.js", ".min.css", ".map"]):
+                        return "generated"
+                    if any(p.endswith(ext) for ext in [".exe", ".dll", ".so", ".dylib", ".wasm", ".pyc", ".class"]):
+                        return "binary"
+                    if any(p.endswith(ext) for ext in [".csv", ".xlsx", ".parquet"]):
+                        return "data"
+                    return "other"
+                if size is not None and size > 100000:
+                    return "generated"
+                return None
+
+            def always_include(path):
+                name = path.split("/")[-1].lower()
+                if name in ALWAYS_FILES:
+                    return True
+                if any(k in name for k in ["schema", "model", "type", "interface", "config"]):
+                    return True
+                depth = path.count("/")
+                if depth <= 1:
+                    return True
+                return False
+
+            def secondary_include(path):
+                p = path.lower()
+                ext = "." + p.split(".")[-1] if "." in p else ""
+                return ext in CODE_EXTS or ext in TEXT_EXTS
+
+            def sort_key(path, tier):
+                depth = path.count("/")
+                lower = path.lower()
+                if depth <= 1:
+                    group = 0
+                elif lower.startswith("src/") or lower.startswith("lib/") or lower.startswith("app/"):
+                    group = 1
+                else:
+                    group = 2
+                return (tier, group, depth, path)
+
+            def truncate_content(content):
+                lines = content.splitlines()
+                if len(lines) <= 300:
+                    return content, len(lines), False
+                head = lines[:100]
+                tail = lines[-50:]
+                truncated = head + ["... [truncated] ..."] + tail
+                return "\n".join(truncated), len(lines), True
+
+            def fetch_file_content(owner, repo, path, token=None):
+                url = f"{API_ROOT}/repos/{owner}/{repo}/contents/{path}"
+                status, data, _ = api_get(url, token)
+                if status != 200:
+                    raise RuntimeError(f"Failed to fetch file content: {path} ({status})")
+                payload = json.loads(data.decode("utf-8"))
+                if payload.get("encoding") != "base64":
+                    return "", 0, False
+                raw = base64.b64decode(payload.get("content", "").encode("utf-8"))
+                text = raw.decode("utf-8", errors="replace")
+                truncated_text, lines, truncated = truncate_content(text)
+                return truncated_text, lines, truncated
+
+            def main(github_repo_url: str, github_token: str = "") -> dict:
+                owner, repo = parse_repo_url(github_repo_url)
+                token = github_token.strip() if github_token else None
+
+                # Repo metadata
+                status, data, headers = api_get(f"{API_ROOT}/repos/{owner}/{repo}", token)
+                if status == 404:
+                    raise RuntimeError("Repository not found or private.")
+                if status in (403, 429):
+                    raise RuntimeError("GitHub API rate limit exceeded.")
+                if status != 200:
+                    raise RuntimeError(f"GitHub API error: {status}")
+
+                repo_info = json.loads(data.decode("utf-8"))
+                default_branch = repo_info.get("default_branch", "main")
+
+                # Tree
+                tree_url = f"{API_ROOT}/repos/{owner}/{repo}/git/trees/{default_branch}?recursive=1"
+                status, data, _ = api_get(tree_url, token)
+                if status != 200:
+                    raise RuntimeError(f"Tree fetch failed: {status}")
+                tree = json.loads(data.decode("utf-8")).get("tree", [])
+
+                blobs = [t for t in tree if t.get("type") == "blob"]
+                total_files = len(blobs)
+
+                skip_counts = {
+                    "dependency": 0,
+                    "assets": 0,
+                    "generated": 0,
+                    "binary": 0,
+                    "data": 0,
+                    "other": 0
+                }
+
+                candidates = []
+                for b in blobs:
+                    path = b.get("path", "")
+                    size = b.get("size")
+                    reason = is_excluded(path, size)
+                    if reason:
+                        skip_counts[reason] += 1
+                        continue
+                    if always_include(path):
+                        candidates.append((path, 0))
+                    elif secondary_include(path):
+                        candidates.append((path, 1))
+                    else:
+                        skip_counts["other"] += 1
+
+                # Sort candidates
+                candidates.sort(key=lambda x: sort_key(x[0], x[1]))
+                candidate_count = len(candidates)
+
+                if candidate_count < 30:
+                    limit = candidate_count
+                elif candidate_count <= 100:
+                    limit = 25
+                else:
+                    limit = 20
+
+                # Ensure always-include are kept
+                always = [c for c in candidates if c[1] == 0]
+                others = [c for c in candidates if c[1] != 0]
+                selected = always + others[: max(0, limit - len(always))]
+                selected_paths = [p for p, _ in selected]
+
+                # Fetch contents with batching
+                files = []
+                batch_size = 20
+                for i in range(0, len(selected_paths), batch_size):
+                    batch = selected_paths[i:i + batch_size]
+                    for path in batch:
+                        try:
+                            content, lines, truncated = fetch_file_content(owner, repo, path, token)
+                        except Exception:
+                            content, lines, truncated = "", 0, False
+                        files.append({
+                            "path": path,
+                            "content": content,
+                            "lines": lines,
+                            "truncated": truncated
+                        })
+                    if len(selected_paths) > batch_size:
+                        time.sleep(1.0)
+
+                analyzed_files = len(files)
+                skipped_files = max(0, total_files - analyzed_files)
+
+                summary = (
+                    f"Analyzed {analyzed_files}/{total_files} files. "
+                    f"Skipped: {skip_counts['dependency']} dependency files, "
+                    f"{skip_counts['assets']} assets, {skip_counts['generated']} generated/minified files, "
+                    f"{skip_counts['binary']} binaries, {skip_counts['data']} data files."
+                )
+
+                result = {
+                    "owner": owner,
+                    "repo": repo,
+                    "description": repo_info.get("description") or "",
+                    "stars": repo_info.get("stargazers_count", 0),
+                    "language": repo_info.get("language") or "",
+                    "topics": repo_info.get("topics") or [],
+                    "total_files": total_files,
+                    "analyzed_files": analyzed_files,
+                    "skipped_files": skipped_files,
+                    "sampling_summary": summary,
+                    "files": files
+                }
+
+                return {
+                    "repo_payload_json": json.dumps(result, ensure_ascii=False),
+                    "analyzed_files_count": analyzed_files,
+                    "source_repo_url": github_repo_url
+                }
+          variables:
+            - variable: "github_repo_url"
+              value_selector:
+                - "start_node"
+                - "github_repo_url"
+            - variable: "github_token"
+              value_selector:
+                - "env"
+                - "GITHUB_TOKEN"
+          outputs:
+            repo_payload_json:
+              type: string
+              children: null
+            analyzed_files_count:
+              type: number
+              children: null
+            source_repo_url:
+              type: string
+              children: null
+          x-outputs:
+            - name: "repo_payload_json"
+              type: string
+            - name: "analyzed_files_count"
+              type: number
+            - name: "source_repo_url"
+              type: string
+
+      - id: "llm_node"
+        type: "custom"
+        position:
+          x: 690
+          y: 0
+        positionAbsolute:
+          x: 690
+          y: 0
+        width: 300
+        height: 160
+        sourcePosition: "right"
+        targetPosition: "left"
+        selected: false
+        data:
+          type: "llm"
+          title: "Generate Presentation JSON"
+          desc: "Analyze repo data and return structured slide JSON."
+          # Configure OpenAI API key in Dify → Settings → Model Provider before running
+          model:
+            provider: "langgenius/openai/openai"
+            name: "gpt-4o"
+            mode: "chat"
+            completion_params:
+              temperature: 0.2
+          prompt_template:
+            - id: "system_prompt"
+              role: "system"
+              text: |+
+                You are CodeTale, an expert code analyst that creates engaging presentations about software projects.
+                You receive a JSON object containing repository metadata and file contents from a GitHub repo.
+                Your job: analyze everything and produce a structured JSON for a slide presentation.
+                OUTPUT FORMAT — Return ONLY valid JSON, no markdown, no explanation:
+                {
+                  "title": "Project Name — One-line description",
+                  "subtitle": "What this project does in plain English",
+                  "totalSlides": 8,
+                  "slides": [
+                    {
+                      "id": 1,
+                      "type": "title",
+                      "title": "Project Name",
+                      "subtitle": "Tagline",
+                      "bullets": ["star count", "main language", "license"],
+                      "speakerNotes": "Introduction to the project..."
+                    },
+                    {
+                      "id": 2,
+                      "type": "overview",
+                      "title": "What Problem Does It Solve?",
+                      "bullets": ["problem 1", "problem 2", "problem 3"],
+                      "speakerNotes": "..."
+                    },
+                    {
+                      "id": 3,
+                      "type": "architecture",
+                      "title": "Architecture & Tech Stack",
+                      "bullets": ["tech 1", "tech 2", "tech 3"],
+                      "diagram_description": "A text description of the architecture for rendering",
+                      "speakerNotes": "..."
+                    },
+                    {
+                      "id": 4,
+                      "type": "code_highlight",
+                      "title": "Key Code Pattern",
+                      "code_snippet": "actual code from the repo, max 15 lines",
+                      "language": "typescript",
+                      "explanation": "Why this code is interesting",
+                      "speakerNotes": "..."
+                    },
+                    {
+                      "id": 5,
+                      "type": "features",
+                      "title": "Key Features",
+                      "bullets": ["feature 1 — explanation", "feature 2 — explanation", "feature 3 — explanation"],
+                      "speakerNotes": "..."
+                    },
+                    {
+                      "id": 6,
+                      "type": "code_highlight",
+                      "title": "Another Interesting Pattern",
+                      "code_snippet": "...",
+                      "language": "...",
+                      "explanation": "...",
+                      "speakerNotes": "..."
+                    },
+                    {
+                      "id": 7,
+                      "type": "stats",
+                      "title": "Project Health & Stats",
+                      "bullets": ["files analyzed: X/Y", "main language: Z", "code patterns found: ..."],
+                      "speakerNotes": "..."
+                    },
+                    {
+                      "id": 8,
+                      "type": "conclusion",
+                      "title": "Key Takeaways",
+                      "bullets": ["takeaway 1", "takeaway 2", "takeaway 3"],
+                      "speakerNotes": "..."
+                    }
+                  ]
+                }
+                RULES:
+                - Always 7-10 slides
+                - Always include at least 2 code_highlight slides with REAL code from the files provided
+                - Make it engaging, not boring — imagine presenting to developers
+                - Speaker notes should be 2-3 sentences each
+                - If the repo is a well-known project, mention what makes it special
+                - Use the sampling_summary to mention how thorough the analysis was
+            - id: "user_prompt"
+              role: "user"
+              text: "{{#parse_fetch_node.repo_payload_json#}}"
+          context:
+            enabled: false
+            variable_selector: []
+          variables: []
+          vision:
+            enabled: false
+          x-outputs:
+            - name: "text"
+              type: string
+          x-io-contracts:
+            fixed_outputs:
+              - name: "text"
+                type: string
+
+      - id: "validate_node"
+        type: "custom"
+        position:
+          x: 1040
+          y: 0
+        positionAbsolute:
+          x: 1040
+          y: 0
+        width: 320
+        height: 150
+        sourcePosition: "right"
+        targetPosition: "left"
+        selected: false
+        data:
+          title: "Validate & Clean Output"
+          desc: "Parse JSON, validate, add metadata, and return final JSON."
+          type: "code"
+          code_language: "python3"
+          code: |
+            import json
+            import re
+            from datetime import datetime
+
+            def strip_fences(text: str) -> str:
+                t = text.strip()
+                if t.startswith("```"):
+                    t = re.sub(r"^```[a-zA-Z0-9]*\\n", "", t)
+                    t = re.sub(r"```$", "", t).strip()
+                return t
+
+            def main(llm_text: str, source_repo_url: str, analyzed_files_count: int) -> dict:
+                raw = llm_text or ""
+                cleaned = strip_fences(raw)
+
+                try:
+                    data = json.loads(cleaned)
+                except Exception:
+                    return {
+                        "final_json": json.dumps({
+                            "error": True,
+                            "message": "Failed to parse AI response",
+                            "raw": cleaned[:500]
+                        }, ensure_ascii=False)
+                    }
+
+                # Validate required fields
+                if not isinstance(data, dict) or "title" not in data or "slides" not in data:
+                    return {
+                        "final_json": json.dumps({
+                            "error": True,
+                            "message": "Missing required fields in AI response",
+                            "raw": cleaned[:500]
+                        }, ensure_ascii=False)
+                    }
+
+                slides = data.get("slides", [])
+                if isinstance(slides, list):
+                    data["totalSlides"] = len(slides)
+
+                # Add metadata
+                data["generated_at"] = datetime.utcnow().isoformat() + "Z"
+                data["source_repo"] = source_repo_url
+                data["generator"] = "CodeTale v1.0 — Dify + GPT-4o"
+                data["analyzed_files_count"] = analyzed_files_count
+
+                return {
+                    "final_json": json.dumps(data, ensure_ascii=False, indent=2)
+                }
+          variables:
+            - variable: "llm_text"
+              value_selector:
+                - "llm_node"
+                - "text"
+            - variable: "source_repo_url"
+              value_selector:
+                - "parse_fetch_node"
+                - "source_repo_url"
+            - variable: "analyzed_files_count"
+              value_selector:
+                - "parse_fetch_node"
+                - "analyzed_files_count"
+          outputs:
+            final_json:
+              type: string
+              children: null
+          x-outputs:
+            - name: "final_json"
+              type: string
+
+      - id: "end_node"
+        type: "custom"
+        position:
+          x: 1410
+          y: 0
+        positionAbsolute:
+          x: 1410
+          y: 0
+        width: 260
+        height: 110
+        sourcePosition: "right"
+        targetPosition: "left"
+        selected: false
+        data:
+          title: "Output"
+          desc: "Return final JSON."
+          type: "end"
+          outputs:
+            - variable: "presentation_json"
+              value_selector:
+                - "validate_node"
+                - "final_json"
+              value_type: "string"
+          x-outputs:
+            - name: "presentation_json"
+              type: string
+
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1.0
+
+  rag_pipeline_variables: []
+```
