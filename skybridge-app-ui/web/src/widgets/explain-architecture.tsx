@@ -1,18 +1,16 @@
+import "@/index.css";
 import { useEffect, useRef, useState } from "react";
 import mermaid from "mermaid";
-
-interface WidgetContext<T> {
-    data: T;
-}
+import { mountWidget } from "skybridge/web";
+import { useToolInfo } from "../helpers";
 
 interface ArchitectureData {
     mermaid_diagram: string;
     explanation: string;
 }
 
-export default function ExplainArchitecture({
-    data,
-}: WidgetContext<ArchitectureData>) {
+function ExplainArchitecture() {
+    const { output: data, isPending } = useToolInfo<"explain-architecture">();
     const mermaidRef = useRef<HTMLDivElement>(null);
     const [renderError, setRenderError] = useState<string | null>(null);
 
@@ -41,13 +39,14 @@ export default function ExplainArchitecture({
         }
     }, [data?.mermaid_diagram]);
 
+    if (isPending) return <div className="p-4 animate-pulse text-center">Visualizing architecture...</div>;
     if (!data) return <div className="p-4 text-red-500">No architecture data available.</div>;
 
     return (
-        <div className="flex flex-col gap-4 p-4 font-sans text-sm">
+        <div className="flex flex-col gap-4 p-4 font-sans text-sm bg-white dark:bg-gray-900 shadow-sm rounded-lg border border-gray-100 dark:border-gray-800">
             <h2 className="text-lg font-bold">Architecture Diagram</h2>
 
-            <div className="bg-white border p-4 rounded-md overflow-x-auto dark:bg-gray-900 border-gray-200 dark:border-gray-700 min-h-[200px] flex items-center justify-center">
+            <div className="bg-white border p-4 rounded-md overflow-x-auto dark:bg-gray-950 border-gray-100 dark:border-gray-800 min-h-[200px] flex items-center justify-center">
                 {renderError ? (
                     <div className="text-red-500 text-xs">{renderError}</div>
                 ) : (
@@ -63,7 +62,7 @@ export default function ExplainArchitecture({
                 </pre>
             </details>
 
-            <div className="bg-white p-4 rounded-md shadow-sm dark:bg-gray-800">
+            <div className="bg-gray-50 p-4 rounded-md dark:bg-gray-800/50">
                 <h3 className="font-semibold mb-2">Architectural Explanation</h3>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
                     {data.explanation}
@@ -72,3 +71,7 @@ export default function ExplainArchitecture({
         </div>
     );
 }
+
+export default ExplainArchitecture;
+
+mountWidget(<ExplainArchitecture />);

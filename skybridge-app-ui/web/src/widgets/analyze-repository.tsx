@@ -1,7 +1,6 @@
-
-interface WidgetContext<T> {
-    data: T;
-}
+import "@/index.css";
+import { mountWidget } from "skybridge/web";
+import { useToolInfo } from "../helpers";
 
 interface AnalysisData {
     summary: string;
@@ -10,13 +9,14 @@ interface AnalysisData {
     complexity_score: number;
 }
 
-export default function AnalyzeRepository({
-    data,
-}: WidgetContext<AnalysisData>) {
+function AnalyzeRepository() {
+    const { output: data, isPending } = useToolInfo<"analyze-repository">();
+
+    if (isPending) return <div className="p-4 animate-pulse">Analyzing repository...</div>;
     if (!data) return <div className="p-4 text-red-500">No analysis data available.</div>;
 
     return (
-        <div className="flex flex-col gap-4 p-4 font-sans text-sm">
+        <div className="flex flex-col gap-4 p-4 font-sans text-sm bg-white dark:bg-gray-900">
             <h2 className="text-lg font-bold">Repository Analysis</h2>
 
             <div className="bg-gray-100 p-4 rounded-md dark:bg-gray-800">
@@ -51,3 +51,7 @@ export default function AnalyzeRepository({
         </div>
     );
 }
+
+export default AnalyzeRepository;
+
+mountWidget(<AnalyzeRepository />);
