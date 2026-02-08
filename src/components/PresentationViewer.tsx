@@ -1,18 +1,20 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { PresentationData } from "@/types/presentation";
+import type { RepoAnalysis } from "@/types/analysis";
 import { ModeSelectionScreen, type ViewMode } from "@/components/presentation/ModeSelectionScreen";
 import { PresentationTopBar } from "@/components/presentation/PresentationTopBar";
 import { CinemaMode } from "@/components/presentation/CinemaMode";
 import { SlideMode } from "@/components/presentation/SlideMode";
+import { AnalysisResults } from "@/components/AnalysisResults";
 
 interface PresentationViewerProps {
   presentation: PresentationData;
   onNewStory: () => void;
-  onViewAnalysis?: () => void;
+  analysisData?: RepoAnalysis | null;
 }
 
-export function PresentationViewer({ presentation, onNewStory, onViewAnalysis }: PresentationViewerProps) {
+export function PresentationViewer({ presentation, onNewStory, analysisData }: PresentationViewerProps) {
   const { slides, repoInfo } = presentation;
   const [viewMode, setViewMode] = useState<ViewMode | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -159,11 +161,11 @@ export function PresentationViewer({ presentation, onNewStory, onViewAnalysis }:
               onDownloadHTML={handleDownloadHTML}
               isFullscreen={isFullscreen}
               onToggleFullscreen={toggleFullscreen}
-              onViewAnalysis={onViewAnalysis}
+              hasAnalysis={!!analysisData}
             />
 
             {/* Mode content */}
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <AnimatePresence mode="wait">
                 {viewMode === "cinema" && (
                   <motion.div
@@ -185,6 +187,21 @@ export function PresentationViewer({ presentation, onNewStory, onViewAnalysis }:
                     className="w-full h-full"
                   >
                     <SlideMode slides={slides} isActive={viewMode === "slides"} />
+                  </motion.div>
+                )}
+                {viewMode === "analysis" && analysisData && (
+                  <motion.div
+                    key="analysis"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="w-full h-full p-6 max-w-5xl mx-auto"
+                  >
+                    <AnalysisResults
+                      analysis={analysisData}
+                      onBack={() => setViewMode("cinema")}
+                      isEmbedded
+                    />
                   </motion.div>
                 )}
               </AnimatePresence>

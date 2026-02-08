@@ -12,7 +12,7 @@ interface PresentationTopBarProps {
   onDownloadHTML: () => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
-  onViewAnalysis?: () => void;
+  hasAnalysis?: boolean;
 }
 
 export function PresentationTopBar({
@@ -23,7 +23,7 @@ export function PresentationTopBar({
   onDownloadHTML,
   isFullscreen,
   onToggleFullscreen,
-  onViewAnalysis,
+  hasAnalysis,
 }: PresentationTopBarProps) {
   return (
     <motion.div
@@ -78,16 +78,23 @@ export function PresentationTopBar({
           <LayoutDashboard className="w-3.5 h-3.5" />
           Slides
         </button>
+        {hasAnalysis && (
+          <button
+            onClick={() => onModeChange("analysis")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+              viewMode === "analysis"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            Analysis
+          </button>
+        )}
       </div>
 
       {/* Right: Actions */}
       <div className="flex items-center gap-1">
-        {onViewAnalysis && (
-          <Button variant="ghost" size="sm" onClick={onViewAnalysis} className="rounded-lg gap-1.5 text-xs text-muted-foreground hover:text-foreground">
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Analysis</span>
-          </Button>
-        )}
         <Button variant="ghost" size="sm" onClick={onDownloadHTML} className="rounded-lg">
           <Download className="w-3.5 h-3.5" />
         </Button>

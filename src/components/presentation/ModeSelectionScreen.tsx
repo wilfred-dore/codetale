@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Clapperboard, LayoutDashboard, Play, ArrowRight } from "lucide-react";
 
-export type ViewMode = "cinema" | "slides";
+export type ViewMode = "cinema" | "slides" | "analysis";
 
 interface ModeSelectionScreenProps {
   onSelect: (mode: ViewMode) => void;
