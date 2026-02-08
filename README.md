@@ -315,8 +315,8 @@ npm run dev
 
 | Secret | Required | Purpose |
 |--------|----------|---------|
-| `LOVABLE_API_KEY` | ✅ | AI slide generation (primary provider) |
-| `OPENAI_API_KEY` | Optional | Direct OpenAI fallback (GPT‑4.1 / GPT‑4.1‑mini) |
+| `OPENAI_API_KEY` | ✅ | AI analysis & generation — primary provider (GPT‑5.2‑pro) |
+| `LOVABLE_API_KEY` | ✅ | AI gateway fallback (OpenAI GPT‑5.2 via Lovable) |
 | `FAL_API_KEY` | ✅ | Image generation (fal.ai flux/dev) |
 | `GRADIUM_API_KEY` | ✅ | TTS narration (Gradium) |
 | `GITHUB_TOKEN` | Optional | Private repos & higher rate limits (5,000 req/hr vs 60) |
