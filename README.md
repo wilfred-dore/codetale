@@ -234,6 +234,12 @@ Click any link below to launch CodeTale directly on a partner or example reposit
 | **fal.ai JS Client** | [▶️ Launch](https://codetale-wdore.lovable.app/?repo=https%3A%2F%2Fgithub.com%2Ffal-ai%2Ffal-js) | [fal-ai/fal-js](https://github.com/fal-ai/fal-js) |
 | **ZeroML** | [▶️ Launch](https://codetale-wdore.lovable.app/?repo=https%3A%2F%2Fgithub.com%2Fzml%2Fzml) | [zml/zml](https://github.com/zml/zml) |
 
+#### 🪞 Inception Mode
+
+| Project | Try it live | Highlights |
+|---------|-------------|------------|
+| **CodeTale itself** | [▶️ Launch](https://codetale-wdore.lovable.app/?repo=https%3A%2F%2Fgithub.com%2Fwilfred-dore%2Fcodetale) | CodeTale analyzing its own codebase — full meta experience 🤯 |
+
 #### Explore Existing Codebases
 
 | Project | Try it live | Highlights |
