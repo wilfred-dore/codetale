@@ -132,7 +132,25 @@ CodeTale includes a **Skybridge ChatGPT App** that lets you interact with CodeTa
 | **Compare Repos** | Side‑by‑side comparison of two repositories |
 | **Generate Pitch Deck** | Slide deck from a repo URL |
 
-### How to Run
+### ✅ Latest Features (v2)
+- **Visual Architecture Diagrams**: Repositories now display interactive Mermaid diagrams directly in the chat interface.
+
+🚀 **Production URL:** `https://codetale-skybridge-a-24b76a95.alpic.live`
+
+### Connecting to ChatGPT (Manual Setup)
+You cannot "push" a GPT configuration via the API. You must configure it in the ChatGPT interface:
+
+1.  **Go to [My GPTs](https://chatgpt.com/gpts/editor)**.
+2.  **Create a new GPT**.
+3.  **Configure**:
+    - Name: CodeTale
+    - Description: AI-powered repository storytelling and analysis.
+4.  **Add Actions**:
+    - Click "Create new action" or "Import from URL".
+    - Paste your Alpic URL: `https://codetale-skybridge-a-24b76a95.alpic.live/mcp`
+    - ChatGPT will automatically fetch the schema and available tools.
+
+### How to Run Locally
 ```bash
 cd skybridge-app-ui
 npm install
