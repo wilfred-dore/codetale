@@ -218,32 +218,34 @@ graph TB
 
 ## 🎥 Demo Gallery
 
-### Explore Existing Codebases
+### 🚀 Try it yourself
 
-Try CodeTale with these curated examples:
+Click any link below to launch CodeTale directly on a partner or example repository:
 
-| Project | Repository | Highlights |
-|---------|------------|------------|
-| **Apollo 11** | [chrislgarry/Apollo-11](https://github.com/chrislgarry/Apollo-11) | AGC guidance computer, mission‑critical code walkthrough |
-| **MS-DOS** | [microsoft/MS-DOS](https://github.com/microsoft/MS-DOS) | INT 21h interrupt handler animation, system architecture |
-| **Sorting Algorithms** | [TheAlgorithms/Python](https://github.com/TheAlgorithms/Python) | Bubble, merge, quick sort — animated with data structures |
-| **Data Science Olympics** | [drivendataorg/cookiecutter-data-science](https://github.com/drivendataorg/cookiecutter-data-science) | Data science project structure and best practices |
+#### From Partners
 
-### From Partners
+| Partner | Try it live | Repository |
+|---------|-------------|------------|
+| **Alpic Skybridge** | [▶️ Launch](https://codetale-wdore.lovable.app/?repo=https%3A%2F%2Fgithub.com%2Falpic-ai%2Fskybridge) | [alpic-ai/skybridge](https://github.com/alpic-ai/skybridge) |
+| **Gradium** | [▶️ Launch](https://codetale-wdore.lovable.app/?repo=https%3A%2F%2Fgithub.com%2Fgradium-ai%2Fgradium-py) | [gradium-ai/gradium-py](https://github.com/gradium-ai/gradium-py) |
+| **OpenAI Cookbook** | [▶️ Launch](https://codetale-wdore.lovable.app/?repo=https%3A%2F%2Fgithub.com%2Fopenai%2Fopenai-cookbook) | [openai/openai-cookbook](https://github.com/openai/openai-cookbook) |
+| **Dify** | [▶️ Launch](https://codetale-wdore.lovable.app/?repo=https%3A%2F%2Fgithub.com%2Flanggenius%2Fdify) | [langgenius/dify](https://github.com/langgenius/dify) |
+| **Dust** | [▶️ Launch](https://codetale-wdore.lovable.app/?repo=https%3A%2F%2Fgithub.com%2Fdust-tt%2Fdust) | [dust-tt/dust](https://github.com/dust-tt/dust) |
+| **fal.ai JS Client** | [▶️ Launch](https://codetale-wdore.lovable.app/?repo=https%3A%2F%2Fgithub.com%2Ffal-ai%2Ffal-js) | [fal-ai/fal-js](https://github.com/fal-ai/fal-js) |
+| **ZeroML** | [▶️ Launch](https://codetale-wdore.lovable.app/?repo=https%3A%2F%2Fgithub.com%2Fzml%2Fzml) | [zml/zml](https://github.com/zml/zml) |
 
-See CodeTale in action with our hackathon partners' own codebases:
+#### Explore Existing Codebases
 
-| Partner | Repository | What CodeTale Reveals |
-|---------|------------|----------------------|
-| **Alpic Skybridge** | [alpic-ai/skybridge](https://github.com/alpic-ai/skybridge) | MCP server architecture, ChatGPT app integration patterns • [📹 Watch Demo](demo_videos/AlpicSkybridgeDemo.mp4) |
-| **Gradium** | [gradium-ai/gradium-python](https://github.com/gradium-ai/gradium-python) | TTS API client, multilingual voice synthesis |
-| **OpenAI Cookbook** | [openai/openai-cookbook](https://github.com/openai/openai-cookbook) | GPT integration patterns, prompt engineering examples |
-| **Dify** | [langgenius/dify](https://github.com/langgenius/dify) | Multi-agent orchestration, LLM workflow engine |
-| **Dust** | [dust-tt/dust](https://github.com/dust-tt/dust) | Enterprise AI platform, private codebase analysis |
-| **fal.ai JS Client** | [fal-ai/fal-js](https://github.com/fal-ai/fal-js) | Image generation API, TypeScript SDK patterns |
-| **ZeroML** | [zml/zml](https://github.com/zml/zml) | High-performance ML inference, hardware acceleration |
+| Project | Try it live | Highlights |
+|---------|-------------|------------|
+| **Apollo 11** | [▶️ Launch](https://codetale-wdore.lovable.app/?repo=https%3A%2F%2Fgithub.com%2Fchrislgarry%2FApollo-11) | AGC guidance computer, mission‑critical code walkthrough |
+| **MS-DOS** | [▶️ Launch](https://codetale-wdore.lovable.app/?repo=https%3A%2F%2Fgithub.com%2Fmicrosoft%2FMS-DOS) | INT 21h interrupt handler animation, system architecture |
+| **Sorting Algorithms** | [▶️ Launch](https://codetale-wdore.lovable.app/?repo=https%3A%2F%2Fgithub.com%2FTheAlgorithms%2FPython) | Bubble, merge, quick sort — animated with data structures |
+| **Data Science Olympics** | [▶️ Launch](https://codetale-wdore.lovable.app/?repo=https%3A%2F%2Fgithub.com%2Fdrivendataorg%2Fcookiecutter-data-science) | Data science project structure and best practices |
 
-> 💡 **Try it yourself**: Paste any GitHub URL into CodeTale and watch it generate a cinematic presentation in minutes!
+> 📹 **Video demo (old)**: [Watch the Alpic Skybridge demo](https://github.com/wilfred-dore/codetale/blob/main/demo_videos/AlpicSkybridgeDemo.mp4)
+>
+> 💡 **Or paste any GitHub URL** into CodeTale and watch it generate a cinematic presentation in minutes!
 
 ---
 
@@ -335,8 +337,10 @@ npm run dev
 | ✅ MVP | Diagram zoom modal | Done |
 | ✅ MVP | Analysis tab in viewer | Done |
 | ✅ MVP | Public analysis API | Done |
-| ✅ MVP | 3‑level AI cascade (Lovable + OpenAI) | Done |
+| ✅ MVP | 3‑level AI cascade (OpenAI GPT‑5.2‑pro + Lovable + fallback) | Done |
 | ✅ MVP | Alpic Skybridge server ready | Done |
+| ✅ MVP | Markdown export for analysis reports | Done |
+| 🔧 Fix | Slides/Cinema truncated without fullscreen | In Progress |
 | 🔜 Next | ChatGPT App | In Progress |
 | 🔜 Next | Dify multi‑agent orchestration | In Progress |
 | 💡 Future | Dust — enterprise multi‑repo analysis | Exploring |
@@ -359,7 +363,7 @@ npm run dev
 
 ### Featured Partners
 - **[Lovable](https://lovable.dev)** — Full‑stack AI development platform
-- **[OpenAI](https://openai.com)** — GPT‑5.2, GPT‑4.1, GPT‑4.1‑mini model family
+- **[OpenAI](https://openai.com)** — GPT‑5.2‑pro (primary), GPT‑5.2, GPT‑4o‑mini model family
 - **[fal.ai](https://fal.ai)** — Generative media platform (flux/dev)
 - **[Gradium](https://gradium.ai)** — Voice AI / TTS
 

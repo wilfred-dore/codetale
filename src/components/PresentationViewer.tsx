@@ -118,10 +118,10 @@ export function PresentationViewer({ presentation, onNewStory, analysisData }: P
   return (
     <div
       ref={containerRef}
-      className={`relative flex flex-col w-full ${
+      className={`relative flex flex-col w-full min-h-0 ${
         isFullscreen
           ? "h-screen bg-background"
-          : "h-full max-w-6xl mx-auto"
+          : "flex-1 max-w-6xl mx-auto"
       }`}
     >
       <AnimatePresence mode="wait">
@@ -166,7 +166,7 @@ export function PresentationViewer({ presentation, onNewStory, analysisData }: P
             />
 
             {/* Mode content */}
-            <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
               <AnimatePresence mode="wait">
                 {viewMode === "cinema" && (
                   <motion.div
