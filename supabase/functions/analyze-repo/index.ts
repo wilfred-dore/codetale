@@ -85,7 +85,7 @@ function getGitHubHeaders(): Record<string, string> {
     Accept: "application/vnd.github.v3+json",
     "User-Agent": "CodeTale-Analyzer",
   };
-  const token = Deno.env.get("GITHUB_TOKEN");
+  const token = Deno.env.get("GITHUB_API_KEY");
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
