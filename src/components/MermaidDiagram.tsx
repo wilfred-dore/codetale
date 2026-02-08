@@ -1,24 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { motion } from "framer-motion";
+import { ZoomIn } from "lucide-react";
+import { DiagramZoomModal } from "@/components/DiagramZoomModal";
 
 interface MermaidDiagramProps {
   chart: string;
 }
 
 /**
- * Sanitize Mermaid chart syntax to fix common AI-generated issues:
- * - Escape parentheses inside node labels: A[Label (thing)] → A["Label (thing)"]
- * - Remove problematic characters
+ * Sanitize Mermaid chart syntax to fix common AI-generated issues.
  */
 function sanitizeMermaidChart(raw: string): string {
-  // Replace node labels containing parentheses: X[...(...)] → X["...(...)"]
-  // Match: identifier[content with parens] but NOT already quoted ["..."]
   let sanitized = raw.replace(
     /(\w+)\[(?!")([^\]]*\([^\]]*)\]/g,
     (_, id, content) => `${id}["${content}"]`
   );
 
-  // Also handle edge labels with parentheses: -->|label (x)| → -->|label - x|
   sanitized = sanitized.replace(
     /\|([^|]*)\(([^)]*)\)([^|]*)\|/g,
     (_, before, inner, after) => `|${before}${inner}${after}|`
@@ -31,12 +28,12 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string>("");
   const [error, setError] = useState(false);
+  const [isZoomed, setIsZoomed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function renderDiagram() {
-      // Create an offscreen container so Mermaid error SVGs never show in the page
       const offscreen = document.createElement("div");
       offscreen.style.position = "absolute";
       offscreen.style.left = "-9999px";
@@ -85,20 +82,16 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
           setError(false);
         }
       } catch {
-        // Silently hide broken diagrams
         if (!cancelled) {
           setError(true);
         }
       } finally {
-        // Always clean up offscreen container and any error SVGs Mermaid left behind
         offscreen.remove();
-        // Mermaid v11 sometimes inserts error elements directly into body
         document.querySelectorAll('[id^="d"]').forEach((el) => {
           if (el.classList.contains("mermaid") || el.querySelector(".error-icon")) {
             el.remove();
           }
         });
-        // Also clean up Mermaid's error text containers
         document.querySelectorAll("#d-mermaid, .mermaid-error, [data-mermaid-error]").forEach((el) => el.remove());
       }
     }
@@ -107,22 +100,41 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
     return () => { cancelled = true; };
   }, [chart]);
 
-  // Hide entirely when there's an error — no ugly fallback
+  const handleZoom = useCallback(() => {
+    if (svg) setIsZoomed(true);
+  }, [svg]);
+
   if (error || !svg) {
     return null;
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4 }}
-      ref={containerRef}
-      className="flex items-center justify-center w-full overflow-x-auto py-4
-        [&_svg]:w-full [&_svg]:min-h-[300px] [&_svg]:max-h-[70vh] [&_svg]:h-auto
-        [&_.nodeLabel]:text-sm [&_.edgeLabel]:text-xs
-        rounded-xl border border-border/30 bg-secondary/20 p-6"
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
+    <>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4 }}
+        ref={containerRef}
+        onClick={handleZoom}
+        className="group relative flex items-center justify-center w-full overflow-x-auto py-4 cursor-pointer
+          [&_svg]:w-full [&_svg]:min-h-[300px] [&_svg]:max-h-[70vh] [&_svg]:h-auto
+          [&_.nodeLabel]:text-sm [&_.edgeLabel]:text-xs
+          rounded-xl border border-border/30 bg-secondary/20 p-6
+          hover:border-primary/30 hover:shadow-[0_0_20px_hsl(var(--primary)/0.1)] transition-all duration-300"
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+      {/* Zoom hint */}
+      <div className="flex items-center justify-center gap-1 mt-1 text-xs text-muted-foreground/50">
+        <ZoomIn className="w-3 h-3" />
+        <span>Click to zoom</span>
+      </div>
+
+      {/* Zoom modal */}
+      <DiagramZoomModal
+        svgHtml={svg}
+        isOpen={isZoomed}
+        onClose={() => setIsZoomed(false)}
+      />
+    </>
   );
 }
