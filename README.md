@@ -52,10 +52,11 @@ Developers struggle to:
 
 2. **Slide Generation** — 6‑slide cinematic narrative:
    - AI generates: Hook → Overview → Architecture → Features/Data → Code/Algorithm → Impact
-   - Publication‑quality Mermaid UML diagrams (flowcharts, class, sequence, state diagrams)
-   - Mandatory step‑by‑step code animations on every presentation
-   - Animated charts with real repository metrics (Recharts)
-   - Data structure visualizations (Arrays, Trees, Graphs, Stacks, Queues, Linked Lists)
+    - Publication‑quality Mermaid UML diagrams (Flowcharts, Class, Sequence, State, and Entity Relationship diagrams)
+    - Mandatory step‑by‑step code animations on every presentation
+    - **Cinematic Algorithm Animations** — Inspired by the mathematical storytelling of [Grant Sanderson (3Blue1Brown)](https://www.youtube.com/@3blue1brown), making complex logic beautiful and intuitive.
+    - Animated charts with real repository metrics (Recharts)
+    - Data structure visualizations (Arrays, Trees, Graphs, Stacks, Queues, Linked Lists)
 
 3. **Media Production**:
    - Narration audio via Gradium TTS (English 🇬🇧, French 🇫🇷, German 🇩🇪)
@@ -580,6 +581,8 @@ Explore CodeTale's capabilities through our curated gallery of analyses and gene
 |---------|--------|
 | **Architecture Overview** | ![Architecture](screenshots/Overview.png) |
 | **Dify Multi-Agent Workflow** | ![Dify Workflow](screenshots/workflow-diagram.png) |
+| **UML Diagrams** | ![UML Diagrams](screenshots/UMLDiagrams.png) |
+| **Algorithm Animations** | ![Algorithm Animation](screenshots/AlgorithmAnimation.png) |
 | **Alpic Skybridge Integration** | ![Skybridge](screenshots/AlpicSkybridge.png) |
 | **Dust Enterprise Analysis** | ![Dust](screenshots/Dust.png) |
 
