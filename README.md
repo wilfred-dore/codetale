@@ -131,15 +131,6 @@ graph TB
 
 ---
 
-## 🌟 The Problem
-
-Developers struggle to:
-- Create engaging demos of their projects
-- Present technical concepts visually
-- Explain complex algorithms and data flows
-- Spend hours on content creation instead of coding
-
-**CodeTale turns any GitHub repo into a cinematic presentation in minutes, not hours.**
 
 ---
 
@@ -166,6 +157,20 @@ Developers struggle to:
 | [Recharts](https://recharts.org) | Animated data visualizations |
 | [Mermaid](https://mermaid.js.org) | UML diagrams (flowchart, sequence, class, state) |
 | [Framer Motion](https://www.framer.com/motion) | UI animations and transitions |
+
+---
+
+
+
+## 🌟 The Problem
+
+Developers struggle to:
+- Create engaging demos of their projects
+- Present technical concepts visually
+- Explain complex algorithms and data flows
+- Spend hours on content creation instead of coding
+
+**CodeTale turns any GitHub repo into a cinematic presentation in minutes, not hours.**
 
 ---
 
@@ -233,50 +238,6 @@ If one provider fails (rate limit, credits exhausted, auth error), the system au
 - **Download** standalone HTML presentation
 - **Public API**: `POST /functions/v1/analyze-repo` with configurable `max_files`, `target_audience`
 - **API docs**: `/api-docs` page with cURL, JavaScript, Python examples
-
----
-
-## 💬 Conversational Interface (Alpic Skybridge)
-
-CodeTale includes a **Skybridge ChatGPT App** that lets you interact with CodeTale directly inside **ChatGPT** via MCP.
-
-### ChatGPT App Features
-| Action | Description |
-|--------|-------------|
-| **Analyze Repo** | Structured summary of any GitHub repository |
-| **Explain Architecture** | Architecture diagrams rendered in chat |
-| **Compare Repos** | Side‑by‑side comparison of two repositories |
-| **Generate Pitch Deck** | Slide deck from a repo URL |
-
-### ✅ Latest Features (v2)
-- **Visual Architecture Diagrams**: Repositories now display interactive Mermaid diagrams directly in the chat interface.
-
-🚀 **Production URL:** `https://codetale-skybridge-a-24b76a95.alpic.live`
-
-### Connecting to ChatGPT (Manual Setup)
-You cannot "push" a GPT configuration via the API. You must configure it in the ChatGPT interface:
-
-1.  **Go to [My GPTs](https://chatgpt.com/gpts/editor)**.
-2.  **Create a new GPT**.
-3.  **Configure**:
-    - Name: CodeTale
-    - Description: AI-powered repository storytelling and analysis.
-4.  **Add Actions**:
-    - Click "Create new action" or "Import from URL".
-    - Paste your Alpic URL: `https://codetale-skybridge-a-24b76a95.alpic.live/mcp`
-    - ChatGPT will automatically fetch the schema and available tools.
-
-### How to Run Locally
-```bash
-cd skybridge-app-ui
-npm install
-npm run dev
-```
-
-Then expose with ngrok and configure in ChatGPT as a GPT Action or MCP Server:
-```bash
-ngrok http 3000
-```
 
 ---
 
@@ -416,3 +377,50 @@ Built with ❤️ at {Tech: Europe} Paris AI Hackathon 2026
 
 <div align="center">
 </div>
+
+
+---
+
+## 💬 Conversational Interface (Alpic Skybridge)
+
+CodeTale includes a **Skybridge ChatGPT App** that lets you interact with CodeTale directly inside **ChatGPT** via MCP.
+
+### ChatGPT App Features
+| Action | Description |
+|--------|-------------|
+| **Analyze Repo** | Structured summary of any GitHub repository |
+| **Explain Architecture** | Architecture diagrams rendered in chat |
+| **Compare Repos** | Side‑by‑side comparison of two repositories |
+| **Generate Pitch Deck** | Slide deck from a repo URL |
+
+### ✅ Latest Features (v2)
+- **Visual Architecture Diagrams**: Repositories now display interactive Mermaid diagrams directly in the chat interface.
+
+🚀 **Production URL:** `https://codetale-skybridge-a-24b76a95.alpic.live`
+
+### Connecting to ChatGPT (Manual Setup)
+You cannot "push" a GPT configuration via the API. You must configure it in the ChatGPT interface:
+
+1.  **Go to [My GPTs](https://chatgpt.com/gpts/editor)**.
+2.  **Create a new GPT**.
+3.  **Configure**:
+    - Name: CodeTale
+    - Description: AI-powered repository storytelling and analysis.
+4.  **Add Actions**:
+    - Click "Create new action" or "Import from URL".
+    - Paste your Alpic URL: `https://codetale-skybridge-a-24b76a95.alpic.live/mcp`
+    - ChatGPT will automatically fetch the schema and available tools.
+
+### How to Run Locally
+```bash
+cd skybridge-app-ui
+npm install
+npm run dev
+```
+
+Then expose with ngrok and configure in ChatGPT as a GPT Action or MCP Server:
+```bash
+ngrok http 3000
+```
+
+---
