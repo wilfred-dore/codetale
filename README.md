@@ -1,207 +1,298 @@
 # 🎬 CodeTale
 
-Transform GitHub repositories into cinematic stories, interactive slides, and data‑driven visualizations — powered by AI.
+**Transform GitHub repositories into cinematic stories, interactive slides, and data‑driven visualizations — powered by AI.**
 
 <img src="https://img.shields.io/badge/license-All%20Rights%20Reserved-red" alt="All Rights Reserved" />
 <img src="https://img.shields.io/badge/Built%20with-Lovable-purple" alt="Built with Lovable" />
+<img src="https://img.shields.io/badge/AI-OpenAI%20GPT--5.2-green" alt="OpenAI" />
+<img src="https://img.shields.io/badge/Images-fal.ai-blue" alt="fal.ai" />
+<img src="https://img.shields.io/badge/Voice-Gradium-orange" alt="Gradium" />
+<img src="https://img.shields.io/badge/ChatGPT%20App-Alpic%20Skybridge-teal" alt="Alpic Skybridge" />
 
 [📄 View presentation slides](slides/CodeTalePresentation.pdf)
 [📹 Watch Deep Dive Video](demo_videos/AlpicSkybridgeDemo.mp4)
 
-**Status:** Hackathon prototype for {Tech: Europe} Paris 2026.
+> 🏆 **{Tech: Europe} Paris AI Hackathon 2026** — Built in 48 hours at NeonNoir, Paris.
+
+---
 
 ## 🌟 The Problem
+
 Developers struggle to:
+- Create engaging demos of their projects
+- Present technical concepts visually
+- Explain complex algorithms and data flows
+- Spend hours on content creation instead of coding
 
-- Create engaging demos of their projects.
-- Present technical concepts visually.
-- Explain complex algorithms and data flows.
-- Spend hours on content creation instead of coding.
+**CodeTale turns any GitHub repo into a cinematic presentation in minutes, not hours.**
 
-CodeTale turns repos into presentations in minutes, not hours.
+---
+
+## 🏗️ Partner Technologies Used
+
+> **Hackathon requirement: minimum 3 partner technologies.** CodeTale uses **7**.
+
+| # | Partner | Usage in CodeTale | Category |
+|---|---------|-------------------|----------|
+| 1 | **[Lovable](https://lovable.dev)** | Full‑stack development platform. Frontend, backend (Edge Functions), database, deployment — all built with Lovable. | Infrastructure |
+| 2 | **[OpenAI](https://openai.com)** | GPT‑5.2 for slide generation & repository analysis. GPT‑4.1 / GPT‑4.1‑mini as fallback providers. Direct OpenAI API supported alongside Lovable AI gateway. | AI Models |
+| 3 | **[fal.ai](https://fal.ai)** | flux/dev model for generating minimalist slide illustrations when no rich visualization (Mermaid, chart, code animation) is available. | Generative Media |
+| 4 | **[Gradium](https://gradium.ai)** | Text‑to‑speech narration in 3 languages (English, French, German). Powers continuous Cinema Mode voiceover and per‑slide audio in Slide Mode. | Voice AI |
+| 5 | **[Alpic Skybridge](https://alpic.ai)** | ChatGPT App integration — analyze repos, compare projects, generate pitch decks directly inside ChatGPT via MCP. | ChatGPT Apps |
+| 6 | **[Dify](https://dify.ai)** | Multi‑agent orchestration planned for advanced analysis pipelines. | AI Agents |
+| 7 | **[Dust](https://dust.tt)** | Private multi‑repository analysis for enterprise use cases (exploring). | AI Platform |
+
+### Additional Technologies
+| Technology | Role |
+|------------|------|
+| [DeepWiki](https://deepwiki.com) | AI‑analyzed documentation for deeper architectural context |
+| [ZeroML/ZML](https://zml.ai) | High‑performance inference exploration |
+| [Recharts](https://recharts.org) | Animated data visualizations |
+| [Mermaid](https://mermaid.js.org) | UML diagrams (flowchart, sequence, class, state) |
+| [Framer Motion](https://www.framer.com/motion) | UI animations and transitions |
+
+---
 
 ## ✨ What's Implemented
-This repository contains a working front‑end and backend pipeline that:
 
-- Accepts a GitHub repo URL and fetches metadata, README, language stats, and **file tree**.
-- Runs a **deep multi‑step repository analysis** (architecture, patterns, complexity, audience insights) before generating slides.
-- Fetches **DeepWiki** (deepwiki.com) AI‑analyzed documentation for deeper architectural context.
-- **Discovers and classifies repository images** (screenshots, diagrams, architecture visuals) from README and asset folders, prioritizing technical images.
-- Generates a 6‑slide narrative using OpenAI GPT‑5.2 (via the Lovable AI gateway) with a 3‑level provider cascade for reliability.
-- Builds rich visualizations: **Mermaid UML diagrams** (flowcharts, class diagrams, sequence diagrams, state diagrams), **animated charts**, **step‑by‑step code animations**, and **data structure visualizations**.
-- Synthesizes localized narration audio with Gradium TTS (English, French, German).
-- Generates minimalist slide artwork with fal.ai (flux/dev) only when no rich visualization is available.
-- Returns a ready‑to‑play presentation to the UI.
+### Core Pipeline
+1. **Repository Analysis** — Deep multi‑step analysis engine:
+   - Fetches repo metadata, README, file tree, and language stats from GitHub API
+   - Fetches AI‑analyzed documentation from [DeepWiki](https://deepwiki.com)
+   - Discovers and classifies images (screenshots, architecture diagrams) from README and asset folders
+   - Adaptive file budgeting: Small <30 files → all; Medium 30–100 → top 25; Large >100 → top 20
+   - 6‑tier file prioritization: Identity → Config → Entry Points → Keywords → Shallow → Deep
+   - Smart truncation: Files >300 lines keep first 100 + last 50 lines
+
+2. **Slide Generation** — 6‑slide cinematic narrative:
+   - AI generates: Hook → Overview → Architecture → Features/Data → Code/Algorithm → Impact
+   - Publication‑quality Mermaid UML diagrams (flowcharts, class, sequence, state diagrams)
+   - Mandatory step‑by‑step code animations on every presentation
+   - Animated charts with real repository metrics (Recharts)
+   - Data structure visualizations (Arrays, Trees, Graphs, Stacks, Queues, Linked Lists)
+
+3. **Media Production**:
+   - Narration audio via Gradium TTS (English 🇬🇧, French 🇫🇷, German 🇩🇪)
+   - AI illustrations via fal.ai (flux/dev) — only when no rich visualization exists
+   - Ken Burns effect (zoom/pan) on images for dynamic visuals
+   - Repository screenshots and diagrams used as native slide visuals
+
+### AI Provider Cascade
+CodeTale supports **both** the Lovable AI gateway and **direct OpenAI API** access with automatic failover:
+
+```
+Priority 1: Lovable AI Gateway → openai/gpt-5.2 (best model)
+Priority 2: OpenAI Direct API  → gpt-4.1 (fallback)
+Priority 3: OpenAI Direct API  → gpt-4.1-mini (cheapest fallback)
+```
+
+If one provider fails (rate limit, credits exhausted, auth error), the system automatically cascades to the next. This ensures **zero downtime** for slide generation.
+
+---
 
 ## 🎬 Features
 
-### Viewing Modes
-- **Cinema Mode** 🎬 *(recommended)*: Autoplay slides with continuous narration, cinematic crossfade transitions, auto‑scrolling content, and Netflix‑style overlay controls. Fully hands‑free experience.
-- **Slide Mode** 📊: Manual navigation with on‑demand audio per slide. Arrow keys, click, or dot indicators to advance.
-- **Analysis Tab** 🔬: Full technical analysis dashboard accessible from the top bar — architecture breakdown, complexity scores, pattern detection, audience‑specific insights (developer, manager, investor), and discovered repository images.
+### Three Viewing Modes
+| Mode | Description | Access |
+|------|-------------|--------|
+| 🎬 **Cinema** *(recommended)* | Autoplay with continuous narration, cinematic crossfade, auto‑scroll, Netflix‑style overlay controls. Fully hands‑free. | Mode selection screen + top bar |
+| 📊 **Slides** | Manual navigation with on‑demand audio. Arrow keys, click, or dot indicators. | Mode selection screen + top bar |
+| 🔬 **Analysis** | Full technical dashboard: architecture, complexity, patterns, audience insights, discovered repo images. | Top bar tab |
 
-### Smart Repository Analysis
-- **Adaptive file budgeting**: Small repos (<30 files): all scanned. Medium (30–100): top 25. Large (>100): top 20.
-- **6‑tier file prioritization**: Identity → Config → Entry Points → Keywords → Shallow Source → Deep Source.
-- **Smart truncation**: Files >300 lines keep first 100 + last 50 lines for optimal LLM context.
-- **Image discovery**: Extracts images from README markdown (`![](url)`, `<img>` tags) and asset folders (`docs/`, `assets/`, `.github/`). Classifies images as `likely_technical` using keyword matching (architecture, diagram, flow, schema…).
-- **DeepWiki integration**: Fetches AI‑analyzed documentation from deepwiki.com for richer architectural context.
-
-### Presentation Engine
-- **6‑slide story arc**: Hook → Overview → Architecture → Features/Data → Code/Algorithm → Impact.
-- **Publication‑quality Mermaid diagrams**: C4‑style subgraphs, sequence diagrams, class diagrams, state diagrams. Diagrams can appear on **multiple slides**, not just architecture. Click‑to‑zoom fullscreen modal.
-- **Animated charts** (Recharts): Bar, Line, Area, Pie, Radar — animated with real repository metrics.
-- **Code stepper**: Progressive line‑by‑line highlighting synced to narration. **Mandatory** on every presentation — shows the core algorithm, interrupt handler, API pattern, or signature code of the repo.
-- **Data structure visualizations**: Animated SVG for Arrays, Trees, Graphs, Stacks, Queues, and Linked Lists with automatic layout.
-- **Ken Burns effect**: Animated zoom/pan on images for dynamic visuals without server‑side video generation.
-- **Repo media integration**: Screenshots, demos, and diagrams from the repository README are used as native slide visuals, prioritized over AI‑generated illustrations.
-- **Smart media hierarchy**: Technical content (repo media, Mermaid, charts, animations) displayed prominently; AI illustrations shown as subtle thumbnails when rich data is present.
-
-### Navigation & UX
-- **Mode selection screen**: Cinema (recommended) and Slides cards after generation. Analysis accessible via top bar tabs.
-- **Tab order**: Analysis → Slides → Cinema in the top navigation bar.
-- **Fullscreen**: Native Fullscreen API with `F` keyboard shortcut.
-- **Auto‑hiding controls**: Overlay controls fade in Cinema Mode after 3 seconds of inactivity.
-- **Export**: Download a standalone HTML presentation file.
-- **Language support**: English 🇬🇧, French 🇫🇷, German 🇩🇪.
+### Rich Visualizations
+- **Mermaid UML diagrams** on multiple slides — click to zoom fullscreen
+- **Animated charts** (Bar, Line, Area, Pie, Radar) with real data
+- **Code stepper** — line‑by‑line highlighting synced to narration (mandatory on every presentation)
+- **Data structure animations** — SVG visualizations with step‑by‑step state changes
+- **Ken Burns effect** on images for cinematic feel
+- **Smart media hierarchy** — technical content prioritized over AI illustrations
 
 ### Stability & Reliability
-- **3‑level AI provider cascade**: Lovable AI (GPT‑5.2) → OpenAI Direct (GPT‑4.1) → OpenAI Mini (GPT‑4.1‑mini). Automatic failover on 402/429 errors.
-- **Mermaid rendering stability**: Automated syntax sanitization (quoting labels with parentheses), offscreen rendering to suppress error SVGs.
-- **Concurrency guards**: `isGeneratingRef`, `isTransitioningRef`, 2‑minute safety timeout, `generationIdRef` to prevent state corruption.
-- **Diagram zoom**: Click any Mermaid diagram to open a fullscreen zoomable modal. Escape or backdrop click to close.
+- 3‑level AI provider cascade with automatic failover
+- Mermaid syntax sanitization + offscreen rendering
+- Concurrency guards (`isGeneratingRef`, `isTransitioningRef`, 2‑min timeout)
+- Per‑IP rate limiting on public API (10 req/min)
 
-### Public API
-- **Endpoint**: `POST /functions/v1/analyze-repo` — public repository analysis API.
-- **Options**: Configurable `max_files`, `target_audience`. Per‑IP rate limit: 10 req/min.
-- **Documentation**: `/api-docs` page with integration examples for cURL, JavaScript, and Python.
+### Export & API
+- **Download** standalone HTML presentation
+- **Public API**: `POST /functions/v1/analyze-repo` with configurable `max_files`, `target_audience`
+- **API docs**: `/api-docs` page with cURL, JavaScript, Python examples
 
-## 🎥 Demo Gallery
-These examples are wired into the UI for one‑click generation.
+---
 
-| Project | Type | Description |
-| --- | --- | --- |
-| MS-DOS | Cinema / Slides | Origins, architecture, INT 21h interrupt handler animation |
-| Apollo 11 | Cinema / Slides | AGC computer, mission‑critical code walkthrough |
-| Sorting Algorithms | Slides + Animations | Bubble, merge, quick — animated step by step with data structures |
-| Alpic Skybridge | Video Demo | Conversational interface showcase [Watch Video](demo_videos/AlpicSkybridgeDemo.mp4) |
+## 💬 Conversational Interface (Alpic Skybridge)
 
-## 🏗️ Architecture
-```
-┌──────────────────┐
-│     Frontend     │  Vite + React + TypeScript + Framer Motion
-└────────┬─────────┘
-         │
-         ├──→ analyze-repo (Edge Function)
-         │    ├─ GitHub API (repo tree, README, languages)
-         │    ├─ DeepWiki (AI documentation)
-         │    ├─ Image Discovery & Classification
-         │    └─ Lovable AI / OpenAI (deep analysis)
-         │
-         ├──→ generate-presentation (Edge Function)
-         │    ├─ Lovable AI GPT-5.2 (slide generation)
-         │    │   └─ 3-level provider cascade
-         │    ├─ Mermaid (UML diagrams)
-         │    ├─ Gradium TTS (narration)
-         │    └─ fal.ai (slide imagery fallback)
-         │
-         └──→ Presentation Viewer
-              ├─ Analysis Tab (technical dashboard)
-              ├─ Slide Mode (manual navigation)
-              └─ Cinema Mode (autoplay + narration)
-```
+CodeTale includes a **Skybridge ChatGPT App** that lets you interact with CodeTale directly inside **ChatGPT** via MCP.
 
-## 🧰 Tech Stack
-| Category | Technology |
-| --- | --- |
-| Frontend | Vite, React, TypeScript |
-| UI | Tailwind CSS, shadcn/ui, Radix UI |
-| Animation | Framer Motion |
-| Charts | Recharts |
-| Diagrams | Mermaid (flowchart, sequence, class, state) |
-| Backend | Supabase Edge Functions (Deno) |
-| AI Models | Lovable AI gateway — GPT‑5.2, GPT‑4.1, GPT‑4.1‑mini |
-| Voice | Gradium TTS (multilingual) |
-| Images | fal.ai (flux/dev) |
-| Analysis | DeepWiki (deepwiki.com) |
-
-
-## 💬 Conversational Interface (Skybridge)
-
-CodeTale includes a **Skybridge App** that lets you analyze repositories and generate presentations directly within **ChatGPT**.
-
-### Features 
-- **Analyze Repo**: Get a structured summary of any GitHub repository.
-- **Explain Architecture**: View architecture diagrams rendered in chat.
-- **Compare Repos**: Side-by-side comparison of two repositories.
-- **Generate Pitch Deck**: Create a slide deck from a repo URL.
+### ChatGPT App Features
+| Action | Description |
+|--------|-------------|
+| **Analyze Repo** | Structured summary of any GitHub repository |
+| **Explain Architecture** | Architecture diagrams rendered in chat |
+| **Compare Repos** | Side‑by‑side comparison of two repositories |
+| **Generate Pitch Deck** | Slide deck from a repo URL |
 
 ### How to Run
-1. Navigate to the app directory:
-   ```bash
-   cd skybridge-app-ui
-   npm install
-   npm run dev
-   ```
-2. Expose local server with ngrok:
-   ```bash
-   ngrok http 3000
-   ```
-3. Configure in ChatGPT as an MCP Server or GPT Action.
+```bash
+cd skybridge-app-ui
+npm install
+npm run dev
+```
+
+Then expose with ngrok and configure in ChatGPT as a GPT Action or MCP Server:
+```bash
+ngrok http 3000
+```
+
+---
+
+## 🎥 Demo Gallery
+
+One‑click generation from the UI:
+
+| Project | Type | Highlights |
+|---------|------|------------|
+| **MS-DOS** | Cinema / Slides | INT 21h interrupt handler animation, system architecture |
+| **Apollo 11** | Cinema / Slides | AGC guidance computer, mission‑critical code walkthrough |
+| **Sorting Algorithms** | Slides + Animations | Bubble, merge, quick sort — animated with data structures |
+| **Alpic Skybridge** | Video Demo | [Watch Video](demo_videos/AlpicSkybridgeDemo.mp4) |
+
+---
+
+## 🏗️ Architecture
+
+```
+┌──────────────────────────┐
+│        Frontend          │  Vite + React + TypeScript + Framer Motion
+│  ┌────────────────────┐  │
+│  │ Presentation Viewer│  │
+│  │  ├─ Cinema Mode    │  │
+│  │  ├─ Slide Mode     │  │
+│  │  └─ Analysis Tab   │  │
+│  └────────────────────┘  │
+└───────────┬──────────────┘
+            │
+   ┌────────┴────────────────────────────────┐
+   │                                         │
+   ▼                                         ▼
+┌─────────────────────┐    ┌──────────────────────────────┐
+│  analyze-repo       │    │  generate-presentation       │
+│  (Edge Function)    │    │  (Edge Function)             │
+│                     │    │                              │
+│  ├─ GitHub API      │    │  ├─ AI Cascade:              │
+│  │  (tree, README)  │    │  │  1. Lovable AI (GPT-5.2) │
+│  ├─ DeepWiki        │    │  │  2. OpenAI API (GPT-4.1) │
+│  │  (AI docs)       │    │  │  3. OpenAI (GPT-4.1-mini)│
+│  ├─ Image Discovery │    │  ├─ Mermaid UML diagrams    │
+│  │  & Classification│    │  ├─ Gradium TTS (narration) │
+│  └─ AI Analysis     │    │  └─ fal.ai (illustrations)  │
+│     (Lovable/OpenAI)│    │                              │
+└─────────────────────┘    └──────────────────────────────┘
+```
+
+---
+
+## 🧰 Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| **Frontend** | Vite, React, TypeScript |
+| **UI** | Tailwind CSS, shadcn/ui, Radix UI |
+| **Animation** | Framer Motion |
+| **Charts** | Recharts |
+| **Diagrams** | Mermaid (flowchart, sequence, class, state) |
+| **Backend** | Supabase Edge Functions (Deno) via Lovable Cloud |
+| **AI — Primary** | Lovable AI gateway → OpenAI GPT‑5.2 |
+| **AI — Fallback** | OpenAI Direct API → GPT‑4.1 / GPT‑4.1‑mini |
+| **Voice** | Gradium TTS (multilingual) |
+| **Images** | fal.ai (flux/dev) |
+| **Analysis** | DeepWiki (deepwiki.com) |
+| **ChatGPT App** | Alpic Skybridge (MCP) |
+
+---
 
 ## 🚀 Quickstart
-1. Install dependencies.
 
+### 1. Install dependencies
 ```sh
 npm install
 ```
 
-2. Configure environment variables for the frontend.
-
+### 2. Configure frontend environment
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_PUBLISHABLE_KEY`
 
-3. Run the dev server.
-
+### 3. Run the dev server
 ```sh
 npm run dev
 ```
 
-4. Edge Functions expect the following secrets:
+### 4. Edge Function secrets
 
-| Secret | Purpose |
-| --- | --- |
-| `LOVABLE_API_KEY` | AI slide generation (primary) |
-| `OPENAI_API_KEY` | AI fallback provider |
-| `FAL_API_KEY` | Image generation |
-| `GRADIUM_API_KEY` | TTS narration |
-| `GITHUB_TOKEN` | Private repos & higher rate limits (5,000 req/hr) |
+| Secret | Required | Purpose |
+|--------|----------|---------|
+| `LOVABLE_API_KEY` | ✅ | AI slide generation (primary provider) |
+| `OPENAI_API_KEY` | Optional | Direct OpenAI fallback (GPT‑4.1 / GPT‑4.1‑mini) |
+| `FAL_API_KEY` | ✅ | Image generation (fal.ai flux/dev) |
+| `GRADIUM_API_KEY` | ✅ | TTS narration (Gradium) |
+| `GITHUB_TOKEN` | Optional | Private repos & higher rate limits (5,000 req/hr vs 60) |
+
+---
 
 ## 🔄 Roadmap
+
 | Phase | Feature | Status |
-| --- | --- | --- |
-| MVP | Cinema + Slides generation | ✅ Done |
-| MVP | Deep repository analysis engine | ✅ Done |
-| MVP | Multi‑diagram UML support | ✅ Done |
-| MVP | Code animation (mandatory) | ✅ Done |
-| MVP | Image discovery & classification | ✅ Done |
-| MVP | Diagram zoom modal | ✅ Done |
-| MVP | Analysis tab in viewer | ✅ Done |
-| MVP | Public analysis API | ✅ Done |
-| Next | Dify multi‑agent orchestration | 🔜 Planned |
-| Next | Alpic Skybridge conversational interface | 🔜 Planned |
-| Future | Dust — private multi‑repository analysis for enterprises | 💡 Exploring |
+|-------|---------|--------|
+| ✅ MVP | Cinema + Slides generation | Done |
+| ✅ MVP | Deep repository analysis engine | Done |
+| ✅ MVP | Multi‑diagram UML support (class, sequence, state) | Done |
+| ✅ MVP | Mandatory code animations | Done |
+| ✅ MVP | Image discovery & classification | Done |
+| ✅ MVP | Diagram zoom modal | Done |
+| ✅ MVP | Analysis tab in viewer | Done |
+| ✅ MVP | Public analysis API | Done |
+| ✅ MVP | 3‑level AI cascade (Lovable + OpenAI) | Done |
+| ✅ MVP | Alpic Skybridge ChatGPT App | Done |
+| 🔜 Next | Dify multi‑agent orchestration | Planned |
+| 💡 Future | Dust — enterprise multi‑repo analysis | Exploring |
+| 💡 Future | ZML high‑performance inference | Exploring |
+
+---
+
+## 📋 Hackathon Submission Checklist
+
+- [x] Public GitHub repository with source code
+- [x] Comprehensive README with setup instructions
+- [x] Documentation of all APIs, frameworks, and tools
+- [x] Uses 7 partner technologies (min. 3 required): Lovable, OpenAI, fal.ai, Gradium, Alpic, Dify, Dust
+- [x] 2‑minute video demo: [Watch Video](demo_videos/AlpicSkybridgeDemo.mp4)
+- [x] Live deployment via Lovable
+
+---
 
 ## 🙏 Acknowledgments
-- Lovable — full‑stack development platform.
-- OpenAI — model family used via the Lovable gateway.
-- OpenAI Codex — development companion.
-- DeepWiki — AI‑analyzed documentation.
-- fal.ai — image generation.
-- Gradium — narration TTS.
+
+### Featured Partners
+- **[Lovable](https://lovable.dev)** — Full‑stack AI development platform
+- **[OpenAI](https://openai.com)** — GPT‑5.2, GPT‑4.1, GPT‑4.1‑mini model family
+- **[fal.ai](https://fal.ai)** — Generative media platform (flux/dev)
+- **[Gradium](https://gradium.ai)** — Voice AI / TTS
+
+### Technology Partners
+- **[Alpic](https://alpic.ai)** — ChatGPT App platform (Skybridge)
+- **[Dify](https://dify.ai)** — Open‑source AI agent platform
+- **[Dust](https://dust.tt)** — AI agent platform for enterprises
+- **[ZeroML](https://zml.ai)** — High‑performance inference
+- **[DeepWiki](https://deepwiki.com)** — AI‑analyzed documentation
+- **[OpenAI Codex](https://openai.com)** — Development companion
+
+---
 
 ## 👤 Author
-Wilfred Doré
+
+**Wilfred Doré**
+
+Built with ❤️ at {Tech: Europe} Paris AI Hackathon 2026
 
 <div align="center">
 </div>
