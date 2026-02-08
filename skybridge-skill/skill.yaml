@@ -1,0 +1,77 @@
+
+name: CodeTale
+version: 1.0.0
+description: Transform any GitHub repository into visual presentations, architecture diagrams, and video walkthroughs.
+icon: 📖
+categories:
+  - developer-tools
+  - education
+  - presentations
+
+actions:
+  analyze_repository:
+    description: Analyzes a GitHub repository and returns a structured summary.
+    endpoint: /analyze-repo
+    method: POST
+    parameters:
+      - name: repo_url
+        type: string
+        description: The full URL of the GitHub repository (e.g., https://github.com/owner/repo).
+        required: true
+      - name: target_audience
+        type: string
+        description: The intended audience for the analysis (developer, manager, investor, all).
+        required: false
+        default: developer
+    prompt_id: analyze_repo_prompt
+
+  explain_architecture:
+    description: Explains the internal architecture of a GitHub repository with diagrams.
+    endpoint: /analyze-repo
+    method: POST
+    parameters:
+      - name: repo_url
+        type: string
+        description: The full URL of the GitHub repository.
+        required: true
+    prompt_id: explain_architecture_prompt
+
+  compare_repositories:
+    description: Compares two GitHub repositories side-by-side.
+    endpoint: /analyze-repo  # Note: logic handled in actions.py to call twice
+    method: POST
+    parameters:
+      - name: repo_url_1
+        type: string
+        description: The full URL of the first GitHub repository.
+        required: true
+      - name: repo_url_2
+        type: string
+        description: The full URL of the second GitHub repository.
+        required: true
+    prompt_id: compare_repos_prompt
+
+  generate_pitch_deck:
+    description: Generates a slide presentation for a GitHub repository.
+    endpoint: /generate-presentation
+    method: POST
+    parameters:
+      - name: githubUrl
+        type: string
+        description: The full URL of the GitHub repository.
+        required: true
+      - name: mode
+        type: string
+        description: The style of the presentation (developer, manager, investor).
+        required: false
+        default: investor
+      - name: language
+        type: string
+        description: The language for the presentation (en, fr, es, de, etc.).
+        required: false
+        default: en
+    prompt_id: generate_pitch_deck_prompt
+
+implementation:
+  language: python
+  file: actions.py

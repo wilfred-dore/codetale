@@ -1,0 +1,47 @@
+
+> skybridge-app-ui@0.0.1 build
+> skybridge build
+
+
+ ⛰  Welcome to Skybridge  v0.30.0 → building for production…
+
+ ⟳ Building widgets
+ ○ Compiling server
+ ○ Copying static assets
+
+vite v7.3.1 building client environment for production...
+(node:28192) ExperimentalWarning: globSync is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+transforming...
+✓ 4 modules transformed.
+✗ Build failed in 185ms
+error during build:
+[commonjs--resolver] Missing "./widget" specifier in "skybridge" package
+    at e (file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/vite/dist/node/chunks/config.js:6651:8)
+    at n (file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/vite/dist/node/chunks/config.js:6663:14)
+    at o (file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/vite/dist/node/chunks/config.js:6691:10)
+    at resolveExportsOrImports (file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/vite/dist/node/chunks/config.js:32827:45)
+    at resolveDeepImport (file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/vite/dist/node/chunks/config.js:32841:22)
+    at tryNodeResolve (file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/vite/dist/node/chunks/config.js:32716:70)
+    at Object.handler (file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/vite/dist/node/chunks/config.js:32555:16)
+    at Object.handler (file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/vite/dist/node/chunks/config.js:33706:13)
+    at file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/rollup/dist/es/shared/node-entry.js:22548:40
+    at async PluginDriver.hookFirstAndGetPlugin (file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/rollup/dist/es/shared/node-entry.js:22430:28)
+    at async resolveId (file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/rollup/dist/es/shared/node-entry.js:20889:26)
+    at async ModuleLoader.resolveId (file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/rollup/dist/es/shared/node-entry.js:21335:15)
+    at async Object.resolveId (file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/vite/dist/node/chunks/config.js:4154:21)
+    at async PluginDriver.hookFirstAndGetPlugin (file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/rollup/dist/es/shared/node-entry.js:22430:28)
+    at async resolveId (file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/rollup/dist/es/shared/node-entry.js:20889:26)
+    at async ModuleLoader.resolveId (file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/rollup/dist/es/shared/node-entry.js:21335:15)
+    at async file:///Users/wdore/Documents/TechEuropeHackathon/codetale/skybridge-app-ui/node_modules/rollup/dist/es/shared/node-entry.js:21647:50
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+ ⛰  Welcome to Skybridge  v0.30.0 → building for production…
+
+ ✗ Building widgets
+ ○ Compiling server
+ ○ Copying static assets
+
+ ✗ Build failed
+
+ Command failed with exit code 1
+

@@ -81,6 +81,30 @@ These examples are wired into the UI for one‑click generation.
 | Voice | Gradium TTS |
 | Images | fal.ai |
 
+
+## 💬 Conversational Interface (Skybridge)
+
+CodeTale includes a **Skybridge App** that lets you analyze repositories and generate presentations directly within **ChatGPT**.
+
+### Features 
+- **Analyze Repo**: Get a structured summary of any GitHub repository.
+- **Explain Architecture**: View architecture diagrams rendered in chat.
+- **Compare Repos**: Side-by-side comparison of two repositories.
+- **Generate Pitch Deck**: Create a slide deck from a repo URL.
+
+### How to Run
+1. Navigate to the app directory:
+   ```bash
+   cd skybridge-app-ui
+   npm install
+   npm run dev
+   ```
+2. Expose local server with ngrok:
+   ```bash
+   ngrok http 3000
+   ```
+3. Configure in ChatGPT as an MCP Server or GPT Action.
+
 ## 🚀 Quickstart
 1. Install dependencies.
 
