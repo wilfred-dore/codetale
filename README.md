@@ -78,12 +78,12 @@ Developers struggle to:
    - Repository screenshots and diagrams used as native slide visuals
 
 ### AI Provider Cascade
-CodeTale supports **both** the Lovable AI gateway and **direct OpenAI API** access with automatic failover:
+CodeTale supports **both** direct OpenAI API access and the Lovable AI gateway with automatic failover:
 
 ```
-Priority 1: Lovable AI Gateway → openai/gpt-5.2 (best model)
-Priority 2: OpenAI Direct API  → gpt-4.1 (fallback)
-Priority 3: OpenAI Direct API  → gpt-4.1-mini (cheapest fallback)
+Priority 1: OpenAI Direct API  → gpt-5.2-pro (best, ChatGPT Pro)
+Priority 2: Lovable AI Gateway → openai/gpt-5.2 (gateway fallback)
+Priority 3: OpenAI Direct API  → gpt-4o-mini (cheapest fallback)
 ```
 
 If one provider fails (rate limit, credits exhausted, auth error), the system automatically cascades to the next. This ensures **zero downtime** for slide generation.
@@ -198,13 +198,13 @@ One‑click generation from the UI:
 │  (Edge Function)    │    │  (Edge Function)             │
 │                     │    │                              │
 │  ├─ GitHub API      │    │  ├─ AI Cascade:              │
-│  │  (tree, README)  │    │  │  1. Lovable AI (GPT-5.2) │
-│  ├─ DeepWiki        │    │  │  2. OpenAI API (GPT-4.1) │
-│  │  (AI docs)       │    │  │  3. OpenAI (GPT-4.1-mini)│
+│  │  (tree, README)  │    │  │  1. OpenAI (GPT-5.2-pro) │
+│  ├─ DeepWiki        │    │  │  2. Lovable AI (GPT-5.2) │
+│  │  (AI docs)       │    │  │  3. OpenAI (GPT-4o-mini) │
 │  ├─ Image Discovery │    │  ├─ Mermaid UML diagrams    │
 │  │  & Classification│    │  ├─ Gradium TTS (narration) │
 │  └─ AI Analysis     │    │  └─ fal.ai (illustrations)  │
-│     (Lovable/OpenAI)│    │                              │
+│     (OpenAI/Lovable) │    │                              │
 └─────────────────────┘    └──────────────────────────────┘
 ```
 
@@ -220,8 +220,8 @@ One‑click generation from the UI:
 | **Charts** | Recharts |
 | **Diagrams** | Mermaid (flowchart, sequence, class, state) |
 | **Backend** | Supabase Edge Functions (Deno) via Lovable Cloud |
-| **AI — Primary** | Lovable AI gateway → OpenAI GPT‑5.2 |
-| **AI — Fallback** | OpenAI Direct API → GPT‑4.1 / GPT‑4.1‑mini |
+| **AI — Primary** | OpenAI Direct API → GPT‑5.2‑pro (ChatGPT Pro) |
+| **AI — Fallback** | Lovable AI Gateway (GPT‑5.2) / OpenAI (GPT‑4o‑mini) |
 | **Voice** | Gradium TTS (multilingual) |
 | **Images** | fal.ai (flux/dev) |
 | **Analysis** | DeepWiki (deepwiki.com) |
