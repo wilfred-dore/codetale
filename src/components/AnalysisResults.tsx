@@ -308,16 +308,20 @@ export function AnalysisResults({ analysis, onGeneratePresentation, onBack, onBa
       )}
 
       {/* Target Audiences */}
-      <ExpandableCard title="Who Should Care?" icon={Users}>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {(["developer", "manager", "investor"] as const).map((role) => (
-            <div key={role} className="rounded-lg bg-secondary/30 border border-border/30 p-3 space-y-1">
-              <div className="text-xs font-mono font-semibold text-primary capitalize">{role}</div>
-              <p className="text-xs text-muted-foreground">{analysis.target_audiences[role]}</p>
-            </div>
-          ))}
-        </div>
-      </ExpandableCard>
+      {analysis.target_audiences && (
+        <ExpandableCard title="Who Should Care?" icon={Users}>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {(["developer", "manager", "investor"] as const)
+              .filter((role) => analysis.target_audiences?.[role])
+              .map((role) => (
+                <div key={role} className="rounded-lg bg-secondary/30 border border-border/30 p-3 space-y-1">
+                  <div className="text-xs font-mono font-semibold text-primary capitalize">{role}</div>
+                  <p className="text-xs text-muted-foreground">{analysis.target_audiences[role]}</p>
+                </div>
+              ))}
+          </div>
+        </ExpandableCard>
+      )}
 
       {/* Action buttons */}
       <div className="flex items-center justify-center gap-4 pt-4">
