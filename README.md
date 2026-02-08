@@ -13,7 +13,7 @@
 
 ### 🚀 Live Applications
 - **[Try CodeTale Live](https://codetale-wdore.lovable.app)** — Transform any GitHub repo into a presentation
-- **[Test Alpic Skybridge](https://codetale-skybridge-a-24b76a95.alpic.live/try)** — ChatGPT App integration *(in progress)*
+- **[Test Alpic Skybridge](https://codetale-skybridge-a-24b76a95.alpic.live/try)** — ChatGPT App integration ✅
 
 ### 📚 Documentation & Demos
 - **[View Pitch Deck](documentation/CodeTalePitchPresentation.pdf)** — Project overview and vision
@@ -355,8 +355,9 @@ npm run dev
 | ✅ MVP | 3‑level AI cascade (OpenAI GPT‑5.2‑pro + Lovable + fallback) | Done |
 | ✅ MVP | Alpic Skybridge server ready | Done |
 | ✅ MVP | Markdown export for analysis reports | Done |
-| 🔧 Fix | Slides/Cinema truncated without fullscreen | In Progress |
-| 🔜 Next | ChatGPT App | In Progress |
+| 🔧 Fix | Slides/Cinema truncated without fullscreen | Workaround (auto‑fullscreen) |
+| ✅ MVP | ChatGPT App deployed via Alpic Skybridge | Done 🎉 |
+| 🔜 Next | ChatGPT App UI polish | In Progress |
 | 🔜 Next | Dify multi‑agent orchestration | In Progress |
 | 💡 Future | Dust — enterprise multi‑repo analysis | Exploring |
 | 💡 Future | ZML high‑performance inference | Exploring |
