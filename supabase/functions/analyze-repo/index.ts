@@ -137,7 +137,7 @@ interface TreeItem {
   size?: number;
 }
 
-async function fetchFileTree(owner: string, repo: string): Promise<TreeItem[]> {
+async function fetchFileTree(owner: string, repo: string): Promise<{ files: TreeItem[]; defaultBranch: string }> {
   const headers = getGitHubHeaders();
 
   const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
@@ -171,7 +171,8 @@ async function fetchFileTree(owner: string, repo: string): Promise<TreeItem[]> {
   }
 
   const treeData = await treeRes.json();
-  return (treeData.tree || []).filter((item: TreeItem) => item.type === "blob");
+  const files = (treeData.tree || []).filter((item: TreeItem) => item.type === "blob");
+  return { files, defaultBranch };
 }
 
 function isExcludedDir(path: string): boolean {
@@ -333,6 +334,139 @@ function prioritizeFiles(files: TreeItem[], maxFiles: number): { selected: Prior
       skipped_categories: skippedCategories,
     },
   };
+}
+
+// ─── Repo Image Discovery ──────────────────────────────────────────────────────
+
+const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"]);
+
+/** Keywords in path/filename that suggest a technical/overview image */
+const TECHNICAL_IMAGE_KEYWORDS = [
+  "architecture", "diagram", "overview", "flow", "schema", "design",
+  "system", "infra", "pipeline", "workflow", "topology", "stack",
+  "structure", "layout", "network", "deploy", "ci", "cd",
+  "component", "module", "api", "sequence", "class", "erd",
+  "data-flow", "dataflow", "high-level", "block", "uml",
+  "screenshot", "preview", "demo", "banner", "hero", "logo",
+];
+
+/** Directories likely to contain doc/overview images */
+const DOC_IMAGE_DIRS = [
+  "docs", "doc", "documentation", "images", "img", "assets",
+  "media", "resources", "screenshots", "figures", "diagrams",
+  ".github",
+];
+
+interface RepoImage {
+  path: string;
+  url: string;
+  source: "tree" | "readme";
+  alt?: string;
+  likely_technical: boolean;
+}
+
+function discoverImagesFromTree(files: TreeItem[], owner: string, repo: string, defaultBranch: string): RepoImage[] {
+  const images: RepoImage[] = [];
+
+  for (const file of files) {
+    const ext = getExtension(file.path);
+    if (!IMAGE_EXTENSIONS.has(ext)) continue;
+
+    const lowerPath = file.path.toLowerCase();
+    const pathParts = lowerPath.split("/");
+
+    // Check if it's in a docs/images directory
+    const inDocDir = pathParts.some((p) => DOC_IMAGE_DIRS.includes(p));
+
+    // Check if filename/path contains technical keywords
+    const hasTechKeyword = TECHNICAL_IMAGE_KEYWORDS.some((kw) => lowerPath.includes(kw));
+
+    // Root-level images are often overview images
+    const isRootLevel = pathParts.length <= 2;
+
+    const likelyTechnical = hasTechKeyword || (inDocDir && isRootLevel);
+
+    // Only include likely-relevant images, not deep asset folders
+    if (likelyTechnical || inDocDir) {
+      images.push({
+        path: file.path,
+        url: `https://raw.githubusercontent.com/${owner}/${repo}/${defaultBranch}/${file.path}`,
+        source: "tree",
+        likely_technical: likelyTechnical,
+      });
+    }
+  }
+
+  return images;
+}
+
+function extractImagesFromMarkdown(markdown: string, owner: string, repo: string, defaultBranch: string): RepoImage[] {
+  const images: RepoImage[] = [];
+  // Match ![alt](url) patterns
+  const mdImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+  let match;
+
+  while ((match = mdImageRegex.exec(markdown)) !== null) {
+    const alt = match[1];
+    const rawUrl = match[2];
+
+    // Skip badges, shields, CI status images
+    if (rawUrl.includes("shields.io") || rawUrl.includes("badge") || rawUrl.includes("travis-ci")
+      || rawUrl.includes("github.com/workflows") || rawUrl.includes("codecov.io")
+      || rawUrl.includes("img.shields") || rawUrl.includes("coveralls")) {
+      continue;
+    }
+
+    // Resolve relative URLs to raw GitHub
+    let url = rawUrl;
+    if (!url.startsWith("http")) {
+      url = `https://raw.githubusercontent.com/${owner}/${repo}/${defaultBranch}/${url.replace(/^\.?\//, "")}`;
+    }
+
+    const lowerAlt = alt.toLowerCase();
+    const lowerUrl = url.toLowerCase();
+    const hasTechKeyword = TECHNICAL_IMAGE_KEYWORDS.some(
+      (kw) => lowerAlt.includes(kw) || lowerUrl.includes(kw)
+    );
+
+    images.push({
+      path: rawUrl,
+      url,
+      source: "readme",
+      alt: alt || undefined,
+      likely_technical: hasTechKeyword,
+    });
+  }
+
+  // Also match <img src="..."> HTML tags in markdown
+  const htmlImgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*(?:alt=["']([^"']*)["'])?[^>]*>/gi;
+  while ((match = htmlImgRegex.exec(markdown)) !== null) {
+    const rawUrl = match[1];
+    const alt = match[2] || "";
+
+    if (rawUrl.includes("shields.io") || rawUrl.includes("badge")) continue;
+
+    let url = rawUrl;
+    if (!url.startsWith("http")) {
+      url = `https://raw.githubusercontent.com/${owner}/${repo}/${defaultBranch}/${url.replace(/^\.?\//, "")}`;
+    }
+
+    const lowerAlt = alt.toLowerCase();
+    const lowerUrl = url.toLowerCase();
+    const hasTechKeyword = TECHNICAL_IMAGE_KEYWORDS.some(
+      (kw) => lowerAlt.includes(kw) || lowerUrl.includes(kw)
+    );
+
+    images.push({
+      path: rawUrl,
+      url,
+      source: "readme",
+      alt: alt || undefined,
+      likely_technical: hasTechKeyword,
+    });
+  }
+
+  return images;
 }
 
 async function fetchFileContent(owner: string, repo: string, path: string): Promise<string> {
@@ -724,8 +858,12 @@ serve(async (req) => {
 
     // Step 1: Fetch file tree
     console.log("Step 1: Scanning repository structure...");
-    const allFiles = await fetchFileTree(owner, repo);
+    const { files: allFiles, defaultBranch } = await fetchFileTree(owner, repo);
     console.log(`  Found ${allFiles.length} total files`);
+
+    // Step 1b: Discover repo images from tree
+    const treeImages = discoverImagesFromTree(allFiles, owner, repo, defaultBranch);
+    console.log(`  Found ${treeImages.length} images in tree (${treeImages.filter(i => i.likely_technical).length} likely technical)`);
 
     // Step 2: Smart prioritize & filter
     const { selected: prioritized, stats: samplingStats } = prioritizeFiles(allFiles, maxFiles);
@@ -761,6 +899,29 @@ serve(async (req) => {
       console.log(`  Fetched ${Math.min(i + BATCH_SIZE, prioritized.length)}/${prioritized.length} files`);
     }
 
+    // Step 3b: Extract images from README content
+    const readmeFile = filesContent.find(f =>
+      /^readme\.(md|rst|txt)$/i.test(f.path.split("/").pop() || "")
+    );
+    const readmeImages = readmeFile
+      ? extractImagesFromMarkdown(readmeFile.content, owner, repo, defaultBranch)
+      : [];
+
+    // Merge and deduplicate images (README images take priority)
+    const allImagesMap = new Map<string, RepoImage>();
+    for (const img of treeImages) allImagesMap.set(img.url, img);
+    for (const img of readmeImages) allImagesMap.set(img.url, img); // override with readme source
+    const allRepoImages = Array.from(allImagesMap.values());
+
+    // Sort: likely_technical first, then readme source, limit to 20
+    allRepoImages.sort((a, b) => {
+      if (a.likely_technical !== b.likely_technical) return a.likely_technical ? -1 : 1;
+      if (a.source !== b.source) return a.source === "readme" ? -1 : 1;
+      return 0;
+    });
+    const repoImages = allRepoImages.slice(0, 20);
+    console.log(`  Discovered ${repoImages.length} repo images (${repoImages.filter(i => i.likely_technical).length} technical)`);
+
     // Estimate token count
     const estimatedTokens = filesContent.reduce((sum, f) => sum + Math.ceil(f.content.length / 4), 0);
     console.log(`  Estimated tokens: ~${estimatedTokens.toLocaleString()}`);
@@ -773,12 +934,20 @@ serve(async (req) => {
       .map(([ext, pct]) => `${ext} (${pct}%)`)
       .join(", ");
 
+    // Include image info in the context for the AI
+    const imageContext = repoImages.length > 0
+      ? `\nRepository images discovered: ${repoImages.map(i =>
+          `${i.url}${i.alt ? ` (alt: "${i.alt}")` : ""}${i.likely_technical ? " [TECHNICAL]" : ""}`
+        ).join(", ")}.`
+      : "";
+
     const samplingContext = [
       `Repository has ${samplingStats.total_files} files total.`,
       `${samplingStats.selected_files} code files were analyzed in detail (strategy: ${samplingStats.budget_strategy}).`,
       skippedSummary ? `Skipped: ${skippedSummary}.` : "",
       `File types present: ${typeDistStr}.`,
       `Estimated context: ~${estimatedTokens.toLocaleString()} tokens.`,
+      imageContext,
     ].filter(Boolean).join(" ");
 
     // Step 4: AI analysis
@@ -797,6 +966,7 @@ serve(async (req) => {
       status: "success",
       analysis: {
         ...analysis,
+        repo_images: repoImages,
         _meta: {
           owner,
           repo,
@@ -819,6 +989,7 @@ serve(async (req) => {
         model_used,
         sampling_strategy: samplingStats.budget_strategy,
         estimated_tokens: estimatedTokens,
+        repo_images_count: repoImages.length,
         timestamp: new Date().toISOString(),
       },
     };

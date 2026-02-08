@@ -44,6 +44,14 @@ export interface AnalysisMeta {
   sampling?: SamplingInfo;
 }
 
+export interface RepoImage {
+  path: string;
+  url: string;
+  source: "tree" | "readme";
+  alt?: string;
+  likely_technical: boolean;
+}
+
 export interface RepoAnalysis {
   project_name: string;
   summary: string;
@@ -59,5 +67,6 @@ export interface RepoAnalysis {
   mermaid_architecture: string;
   suggested_narrative: SuggestedNarrative;
   target_audiences: TargetAudiences;
+  repo_images?: RepoImage[];
   _meta: AnalysisMeta;
 }

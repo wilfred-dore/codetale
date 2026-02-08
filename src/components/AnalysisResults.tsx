@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import {
   ChevronDown, ChevronUp, Sparkles, Layers, Code2, Lightbulb,
-  Users, ArrowRight, FileCode2, Puzzle, Zap,
+  Users, ArrowRight, FileCode2, Puzzle, Zap, Image,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -257,6 +257,50 @@ export function AnalysisResults({ analysis, onGeneratePresentation, onBack, onBa
               >
                 <span className="text-primary mt-0.5">💡</span>
                 <span className="text-muted-foreground">{fact}</span>
+              </motion.div>
+            ))}
+          </div>
+        </ExpandableCard>
+      )}
+
+      {/* Repo Images */}
+      {analysis.repo_images && analysis.repo_images.length > 0 && (
+        <ExpandableCard title={`Repo Images (${analysis.repo_images.length})`} icon={Image}>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {analysis.repo_images.map((img, i) => (
+              <motion.div
+                key={img.url}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.05 }}
+                className="rounded-lg bg-secondary/30 border border-border/30 overflow-hidden"
+              >
+                <div className="aspect-video bg-background/50 flex items-center justify-center overflow-hidden">
+                  <img
+                    src={img.url}
+                    alt={img.alt || img.path.split("/").pop() || "Repo image"}
+                    className="max-w-full max-h-full object-contain"
+                    loading="lazy"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                </div>
+                <div className="p-2 space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    {img.likely_technical && (
+                      <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
+                        Technical
+                      </Badge>
+                    )}
+                    <Badge variant="secondary" className="text-[10px]">
+                      {img.source === "readme" ? "README" : "Tree"}
+                    </Badge>
+                  </div>
+                  <p className="text-[10px] font-mono text-muted-foreground/70 truncate">
+                    {img.alt || img.path.split("/").pop()}
+                  </p>
+                </div>
               </motion.div>
             ))}
           </div>
