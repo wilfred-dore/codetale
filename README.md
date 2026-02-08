@@ -16,6 +16,121 @@
 
 ---
 
+## 🏗️ Architecture
+
+```mermaid
+graph TB
+    %% ============================================
+    %% CODETALE — FULL ARCHITECTURE
+    %% ============================================
+
+    %% --- USER ENTRY ---
+    USER((👤 User))
+    USER -->|"GitHub URL"| FRONTEND
+
+    %% --- FRONTEND ---
+    subgraph FRONTEND["🖥️ FRONTEND — Lovable"]
+        direction TB
+        LOVABLE["Lovable<br/>(React No-Code)"]
+        REVEALJS["Reveal.js<br/>📊 Slides"]
+        REMOTION["Framer Motion<br/>🎬  UI animations and transitions"]
+        LOVABLE --> REVEALJS
+        LOVABLE --> REMOTION
+    end
+
+    %% --- ORCHESTRATION ---
+    FRONTEND -->|"API Call<br/>/analyze"| DIFY
+
+    subgraph DIFY["⚙️ ORCHESTRATION — Dify"]
+        direction TB
+        WORKFLOW["Workflow Engine"]
+        
+        subgraph AGENTS["🤖 Multi-Agent System"]
+            direction LR
+            A1["Agent 1<br/>🔍 Code Analyst"]
+            A2["Agent 2<br/>✍️ Script Writer"]
+            A3["Agent 3<br/>🎨 Slide Designer"]
+            A4["Agent 4<br/>✅ Validator"]
+            A1 --> A2 --> A3 --> A4
+        end
+
+        WORKFLOW --> AGENTS
+    end
+
+    %% --- AI PROVIDERS ---
+    subgraph AI["🧠 AI PROVIDERS"]
+        direction TB
+        OPENAI["OpenAI GPT 5.2 Pro <br/>🧠 LLM Principal"]
+        DEEPWIKI["DeepWiki<br/>📚 Repo Intelligence"]
+        FALAI["fal.ai<br/>🖼️ Image Generation"]
+        MERMAID["Mermaid<br/>📐 Diagrams"]
+        MANIM["Manim<br/>🎞️ Algorithm Animations"]
+    end
+
+    DIFY -->|"Analyse & Génération"| OPENAI
+    DIFY -->|"Contexte enrichi<br/>du repo"| DEEPWIKI
+    DIFY -->|"Génère images"| FALAI
+    DIFY -->|"Génère diagrammes"| MERMAID
+    DIFY -->|"Génère animations"| MANIM
+
+    %% --- GITHUB ---
+    GITHUB[("GitHub API<br/>📦 Repo Source")]
+    DIFY -->|"Fetch tree<br/>& files"| GITHUB
+
+    %% --- RETURN TO FRONTEND ---
+    DIFY -->|"JSON structured<br/>slide data"| FRONTEND
+
+    %% ============================================
+    %% FUTURE / EXTENSIONS
+    %% ============================================
+
+    subgraph FUTURE["🔮 ROADMAP — Future Integrations"]
+        direction TB
+
+        subgraph DUST_BLOCK["📂 Dust — Private Data"]
+            DUST["Dust.tt<br/>Private Codebase Analysis<br/>Multi-repo Croisé"]
+        end
+
+        subgraph ALPIC_BLOCK["🌉 Alpic Skybridge"]
+            SKYBRIDGE["Skybridge<br/>Low-Code UI"]
+            CODEX_SKILL["Skill: Codex<br/>Talk to Code"]
+            CANVA_SKILL["Skill: Canva UX"]
+            FIGMA_SKILL["Skill: Figma"]
+            SKYBRIDGE --> CODEX_SKILL
+            SKYBRIDGE --> CANVA_SKILL
+            SKYBRIDGE --> FIGMA_SKILL
+        end
+
+        subgraph ZML_BLOCK["⚡ ZML"]
+            ZML["ZeroML<br/>New Hardware AI Accelerators"]
+        end
+    end
+
+    %% --- Future connections (dashed feel via style) ---
+    DIFY -.->|"Private repos<br/>(future)"| DUST
+    FRONTEND -.->|"Interactive AI chat<br/>(future)"| SKYBRIDGE
+    FALAI -.->|"Alt inference<br/>on-device (side project)"| ZML
+
+    %% ============================================
+    %% STYLES
+    %% ============================================
+    style FRONTEND fill:#1a1a2e,stroke:#e94560,color:#fff,stroke-width:2px
+    style DIFY fill:#0f3460,stroke:#00d2ff,color:#fff,stroke-width:2px
+    style AI fill:#16213e,stroke:#53d8fb,color:#fff,stroke-width:2px
+    style FUTURE fill:#1b1b2f,stroke:#f5a623,color:#fff,stroke-dasharray:5 5,stroke-width:2px
+    style DUST_BLOCK fill:#2d2d44,stroke:#f5a623,color:#fff
+    style ALPIC_BLOCK fill:#2d2d44,stroke:#f5a623,color:#fff
+    style ZML_BLOCK fill:#2d2d44,stroke:#f5a623,color:#fff
+    style AGENTS fill:#162447,stroke:#00d2ff,color:#fff
+    style USER fill:#e94560,stroke:#fff,color:#fff
+    style GITHUB fill:#333,stroke:#fff,color:#fff
+```
+
+> **Note**: If the Mermaid diagram doesn't render in your environment, view the [PNG version](documentation/Overview.png).
+
+
+---
+
 ## 🌟 The Problem
 
 Developers struggle to:
@@ -177,119 +292,6 @@ One‑click generation from the UI:
 
 ---
 
-## 🏗️ Architecture
-
-```mermaid
-graph TB
-    %% ============================================
-    %% CODETALE — FULL ARCHITECTURE
-    %% ============================================
-
-    %% --- USER ENTRY ---
-    USER((👤 User))
-    USER -->|"GitHub URL"| FRONTEND
-
-    %% --- FRONTEND ---
-    subgraph FRONTEND["🖥️ FRONTEND — Lovable"]
-        direction TB
-        LOVABLE["Lovable<br/>(React No-Code)"]
-        REVEALJS["Reveal.js<br/>📊 Slides"]
-        REMOTION["Framer Motion<br/>🎬  UI animations and transitions"]
-        LOVABLE --> REVEALJS
-        LOVABLE --> REMOTION
-    end
-
-    %% --- ORCHESTRATION ---
-    FRONTEND -->|"API Call<br/>/analyze"| DIFY
-
-    subgraph DIFY["⚙️ ORCHESTRATION — Dify"]
-        direction TB
-        WORKFLOW["Workflow Engine"]
-        
-        subgraph AGENTS["🤖 Multi-Agent System"]
-            direction LR
-            A1["Agent 1<br/>🔍 Code Analyst"]
-            A2["Agent 2<br/>✍️ Script Writer"]
-            A3["Agent 3<br/>🎨 Slide Designer"]
-            A4["Agent 4<br/>✅ Validator"]
-            A1 --> A2 --> A3 --> A4
-        end
-
-        WORKFLOW --> AGENTS
-    end
-
-    %% --- AI PROVIDERS ---
-    subgraph AI["🧠 AI PROVIDERS"]
-        direction TB
-        OPENAI["OpenAI GPT 5.2 Pro <br/>🧠 LLM Principal"]
-        DEEPWIKI["DeepWiki<br/>📚 Repo Intelligence"]
-        FALAI["fal.ai<br/>🖼️ Image Generation"]
-        MERMAID["Mermaid<br/>📐 Diagrams"]
-        MANIM["Manim<br/>🎞️ Algorithm Animations"]
-    end
-
-    DIFY -->|"Analyse & Génération"| OPENAI
-    DIFY -->|"Contexte enrichi<br/>du repo"| DEEPWIKI
-    DIFY -->|"Génère images"| FALAI
-    DIFY -->|"Génère diagrammes"| MERMAID
-    DIFY -->|"Génère animations"| MANIM
-
-    %% --- GITHUB ---
-    GITHUB[("GitHub API<br/>📦 Repo Source")]
-    DIFY -->|"Fetch tree<br/>& files"| GITHUB
-
-    %% --- RETURN TO FRONTEND ---
-    DIFY -->|"JSON structured<br/>slide data"| FRONTEND
-
-    %% ============================================
-    %% FUTURE / EXTENSIONS
-    %% ============================================
-
-    subgraph FUTURE["🔮 ROADMAP — Future Integrations"]
-        direction TB
-
-        subgraph DUST_BLOCK["📂 Dust — Private Data"]
-            DUST["Dust.tt<br/>Private Codebase Analysis<br/>Multi-repo Croisé"]
-        end
-
-        subgraph ALPIC_BLOCK["🌉 Alpic Skybridge"]
-            SKYBRIDGE["Skybridge<br/>Low-Code UI"]
-            CODEX_SKILL["Skill: Codex<br/>Talk to Code"]
-            CANVA_SKILL["Skill: Canva UX"]
-            FIGMA_SKILL["Skill: Figma"]
-            SKYBRIDGE --> CODEX_SKILL
-            SKYBRIDGE --> CANVA_SKILL
-            SKYBRIDGE --> FIGMA_SKILL
-        end
-
-        subgraph ZML_BLOCK["⚡ ZML"]
-            ZML["ZeroML<br/>New Hardware AI Accelerators"]
-        end
-    end
-
-    %% --- Future connections (dashed feel via style) ---
-    DIFY -.->|"Private repos<br/>(future)"| DUST
-    FRONTEND -.->|"Interactive AI chat<br/>(future)"| SKYBRIDGE
-    FALAI -.->|"Alt inference<br/>on-device (side project)"| ZML
-
-    %% ============================================
-    %% STYLES
-    %% ============================================
-    style FRONTEND fill:#1a1a2e,stroke:#e94560,color:#fff,stroke-width:2px
-    style DIFY fill:#0f3460,stroke:#00d2ff,color:#fff,stroke-width:2px
-    style AI fill:#16213e,stroke:#53d8fb,color:#fff,stroke-width:2px
-    style FUTURE fill:#1b1b2f,stroke:#f5a623,color:#fff,stroke-dasharray:5 5,stroke-width:2px
-    style DUST_BLOCK fill:#2d2d44,stroke:#f5a623,color:#fff
-    style ALPIC_BLOCK fill:#2d2d44,stroke:#f5a623,color:#fff
-    style ZML_BLOCK fill:#2d2d44,stroke:#f5a623,color:#fff
-    style AGENTS fill:#162447,stroke:#00d2ff,color:#fff
-    style USER fill:#e94560,stroke:#fff,color:#fff
-    style GITHUB fill:#333,stroke:#fff,color:#fff
-```
-
-> **Note**: If the Mermaid diagram doesn't render in your environment, view the [PNG version](documentation/Overview.png).
-
----
 
 ## 🧰 Tech Stack
 
