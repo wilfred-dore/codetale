@@ -121,7 +121,7 @@ export function PresentationViewer({ presentation, onNewStory, analysisData }: P
       className={`relative flex flex-col w-full ${
         isFullscreen
           ? "h-screen bg-background"
-          : "h-full min-h-[80vh] max-w-6xl mx-auto"
+          : "h-full max-w-6xl mx-auto"
       }`}
     >
       <AnimatePresence mode="wait">
