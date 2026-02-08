@@ -16,6 +16,85 @@
 
 ---
 
+## 🌟 The Problem
+
+Developers struggle to:
+- Create engaging demos of their projects
+- Present technical concepts visually
+- Explain complex algorithms and data flows
+- Spend hours on content creation instead of coding
+
+**CodeTale turns any GitHub repo into a cinematic presentation in minutes, not hours.**
+
+---
+
+## ✨ What's Implemented
+
+### Core Pipeline
+1. **Repository Analysis** — Deep multi‑step analysis engine:
+   - Fetches repo metadata, README, file tree, and language stats from GitHub API
+   - Fetches AI‑analyzed documentation from [DeepWiki](https://deepwiki.com)
+   - Discovers and classifies images (screenshots, architecture diagrams) from README and asset folders
+   - Adaptive file budgeting: Small <30 files → all; Medium 30–100 → top 25; Large >100 → top 20
+   - 6‑tier file prioritization: Identity → Config → Entry Points → Keywords → Shallow → Deep
+   - Smart truncation: Files >300 lines keep first 100 + last 50 lines
+
+2. **Slide Generation** — 6‑slide cinematic narrative:
+   - AI generates: Hook → Overview → Architecture → Features/Data → Code/Algorithm → Impact
+   - Publication‑quality Mermaid UML diagrams (flowcharts, class, sequence, state diagrams)
+   - Mandatory step‑by‑step code animations on every presentation
+   - Animated charts with real repository metrics (Recharts)
+   - Data structure visualizations (Arrays, Trees, Graphs, Stacks, Queues, Linked Lists)
+
+3. **Media Production**:
+   - Narration audio via Gradium TTS (English 🇬🇧, French 🇫🇷, German 🇩🇪)
+   - AI illustrations via fal.ai (flux/dev) — only when no rich visualization exists
+   - Ken Burns effect (zoom/pan) on images for dynamic visuals
+   - Repository screenshots and diagrams used as native slide visuals
+
+### AI Provider Cascade
+CodeTale supports **both** direct OpenAI API access and the Lovable AI gateway with automatic failover:
+
+```
+Priority 1: OpenAI Direct API  → gpt-5.2-pro (best, ChatGPT Pro)
+Priority 2: Lovable AI Gateway → openai/gpt-5.2 (gateway fallback)
+Priority 3: OpenAI Direct API  → gpt-4o-mini (cheapest fallback)
+```
+
+If one provider fails (rate limit, credits exhausted, auth error), the system automatically cascades to the next. This ensures **zero downtime** for slide generation.
+
+---
+
+## 🎬 Features
+
+### Three Viewing Modes
+| Mode | Description | Access |
+|------|-------------|--------|
+| 🎬 **Cinema** *(recommended)* | Autoplay with continuous narration, cinematic crossfade, auto‑scroll, Netflix‑style overlay controls. Fully hands‑free. | Mode selection screen + top bar |
+| 📊 **Slides** | Manual navigation with on‑demand audio. Arrow keys, click, or dot indicators. | Mode selection screen + top bar |
+| 🔬 **Analysis** | Full technical dashboard: architecture, complexity, patterns, audience insights, discovered repo images. | Top bar tab |
+
+### Rich Visualizations
+- **Mermaid UML diagrams** on multiple slides — click to zoom fullscreen
+- **Animated charts** (Bar, Line, Area, Pie, Radar) with real data
+- **Code stepper** — line‑by‑line highlighting synced to narration (mandatory on every presentation)
+- **Data structure animations** — SVG visualizations with step‑by‑step state changes
+- **Ken Burns effect** on images for cinematic feel
+- **Smart media hierarchy** — technical content prioritized over AI illustrations
+
+### Stability & Reliability
+- 3‑level AI provider cascade with automatic failover
+- Mermaid syntax sanitization + offscreen rendering
+- Concurrency guards (`isGeneratingRef`, `isTransitioningRef`, 2‑min timeout)
+- Per‑IP rate limiting on public API (10 req/min)
+
+### Export & API
+- **Download** standalone HTML presentation
+- **Public API**: `POST /functions/v1/analyze-repo` with configurable `max_files`, `target_audience`
+- **API docs**: `/api-docs` page with cURL, JavaScript, Python examples
+
+---
+
 ## 🏗️ Architecture
 
 ```mermaid
@@ -134,113 +213,6 @@ graph TB
 
 ---
 
-## 🏗️ Partner Technologies Used
-
-> **Hackathon requirement: minimum 3 partner technologies.** CodeTale uses **7**.
-
-| # | Partner | Usage in CodeTale | Category |
-|---|---------|-------------------|----------|
-| 1 | **[Lovable](https://lovable.dev)** | Full‑stack development platform. Frontend, backend (Edge Functions), database, deployment — all built with Lovable. | Infrastructure |
-| 2 | **[OpenAI](https://openai.com)** | GPT‑5.2 for slide generation & repository analysis. GPT‑4.1 / GPT‑4.1‑mini as fallback providers. Direct OpenAI API supported alongside Lovable AI gateway. | AI Models |
-| 3 | **[fal.ai](https://fal.ai)** | flux/dev model for generating minimalist slide illustrations when no rich visualization (Mermaid, chart, code animation) is available. | Generative Media |
-| 4 | **[Gradium](https://gradium.ai)** | Text‑to‑speech narration in 3 languages (English, French, German). Powers continuous Cinema Mode voiceover and per‑slide audio in Slide Mode. | Voice AI |
-| 5 | **[Alpic Skybridge](https://alpic.ai)** | ChatGPT App integration — analyze repos, compare projects, generate pitch decks directly inside ChatGPT via MCP. | ChatGPT Apps |
-| 6 | **[Dify](https://dify.ai)** | Multi‑agent orchestration (in progress) for advanced analysis pipelines. | AI Agents |
-| 7 | **[Dust](https://dust.tt)** | Private multi‑repository analysis for enterprise use cases (exploring). | AI Platform |
-
-### Additional Technologies
-| Technology | Role |
-|------------|------|
-| [OpenAI Codex](https://openai.com/index/openai-codex/) | Code understanding and generation for repository analysis |
-| [DeepWiki](https://deepwiki.com) | AI‑analyzed documentation for deeper architectural context |
-| [ZeroML/ZML](https://zml.ai) | High‑performance inference exploration |
-| [Recharts](https://recharts.org) | Animated data visualizations |
-| [Mermaid](https://mermaid.js.org) | UML diagrams (flowchart, sequence, class, state) |
-| [Framer Motion](https://www.framer.com/motion) | UI animations and transitions |
-
----
-
-
-
-## 🌟 The Problem
-
-Developers struggle to:
-- Create engaging demos of their projects
-- Present technical concepts visually
-- Explain complex algorithms and data flows
-- Spend hours on content creation instead of coding
-
-**CodeTale turns any GitHub repo into a cinematic presentation in minutes, not hours.**
-
----
-
-## ✨ What's Implemented
-
-### Core Pipeline
-1. **Repository Analysis** — Deep multi‑step analysis engine:
-   - Fetches repo metadata, README, file tree, and language stats from GitHub API
-   - Fetches AI‑analyzed documentation from [DeepWiki](https://deepwiki.com)
-   - Discovers and classifies images (screenshots, architecture diagrams) from README and asset folders
-   - Adaptive file budgeting: Small <30 files → all; Medium 30–100 → top 25; Large >100 → top 20
-   - 6‑tier file prioritization: Identity → Config → Entry Points → Keywords → Shallow → Deep
-   - Smart truncation: Files >300 lines keep first 100 + last 50 lines
-
-2. **Slide Generation** — 6‑slide cinematic narrative:
-   - AI generates: Hook → Overview → Architecture → Features/Data → Code/Algorithm → Impact
-   - Publication‑quality Mermaid UML diagrams (flowcharts, class, sequence, state diagrams)
-   - Mandatory step‑by‑step code animations on every presentation
-   - Animated charts with real repository metrics (Recharts)
-   - Data structure visualizations (Arrays, Trees, Graphs, Stacks, Queues, Linked Lists)
-
-3. **Media Production**:
-   - Narration audio via Gradium TTS (English 🇬🇧, French 🇫🇷, German 🇩🇪)
-   - AI illustrations via fal.ai (flux/dev) — only when no rich visualization exists
-   - Ken Burns effect (zoom/pan) on images for dynamic visuals
-   - Repository screenshots and diagrams used as native slide visuals
-
-### AI Provider Cascade
-CodeTale supports **both** direct OpenAI API access and the Lovable AI gateway with automatic failover:
-
-```
-Priority 1: OpenAI Direct API  → gpt-5.2-pro (best, ChatGPT Pro)
-Priority 2: Lovable AI Gateway → openai/gpt-5.2 (gateway fallback)
-Priority 3: OpenAI Direct API  → gpt-4o-mini (cheapest fallback)
-```
-
-If one provider fails (rate limit, credits exhausted, auth error), the system automatically cascades to the next. This ensures **zero downtime** for slide generation.
-
----
-
-## 🎬 Features
-
-### Three Viewing Modes
-| Mode | Description | Access |
-|------|-------------|--------|
-| 🎬 **Cinema** *(recommended)* | Autoplay with continuous narration, cinematic crossfade, auto‑scroll, Netflix‑style overlay controls. Fully hands‑free. | Mode selection screen + top bar |
-| 📊 **Slides** | Manual navigation with on‑demand audio. Arrow keys, click, or dot indicators. | Mode selection screen + top bar |
-| 🔬 **Analysis** | Full technical dashboard: architecture, complexity, patterns, audience insights, discovered repo images. | Top bar tab |
-
-### Rich Visualizations
-- **Mermaid UML diagrams** on multiple slides — click to zoom fullscreen
-- **Animated charts** (Bar, Line, Area, Pie, Radar) with real data
-- **Code stepper** — line‑by‑line highlighting synced to narration (mandatory on every presentation)
-- **Data structure animations** — SVG visualizations with step‑by‑step state changes
-- **Ken Burns effect** on images for cinematic feel
-- **Smart media hierarchy** — technical content prioritized over AI illustrations
-
-### Stability & Reliability
-- 3‑level AI provider cascade with automatic failover
-- Mermaid syntax sanitization + offscreen rendering
-- Concurrency guards (`isGeneratingRef`, `isTransitioningRef`, 2‑min timeout)
-- Per‑IP rate limiting on public API (10 req/min)
-
-### Export & API
-- **Download** standalone HTML presentation
-- **Public API**: `POST /functions/v1/analyze-repo` with configurable `max_files`, `target_audience`
-- **API docs**: `/api-docs` page with cURL, JavaScript, Python examples
-
----
-
 ## 🎥 Demo Gallery
 
 ### Explore Existing Codebases
@@ -291,6 +263,34 @@ See CodeTale in action with our hackathon partners' own codebases:
 | **ChatGPT App** | Alpic Skybridge (MCP) |
 
 ---
+
+## 🏗️ Partner Technologies Used
+
+> **Hackathon requirement: minimum 3 partner technologies.** CodeTale uses **7**.
+
+| # | Partner | Usage in CodeTale | Category |
+|---|---------|-------------------|----------|
+| 1 | **[Lovable](https://lovable.dev)** | Full‑stack development platform. Frontend, backend (Edge Functions), database, deployment — all built with Lovable. | Infrastructure |
+| 2 | **[OpenAI](https://openai.com)** | GPT‑5.2 for slide generation & repository analysis. GPT‑4.1 / GPT‑4.1‑mini as fallback providers. Direct OpenAI API supported alongside Lovable AI gateway. | AI Models |
+| 3 | **[fal.ai](https://fal.ai)** | flux/dev model for generating minimalist slide illustrations when no rich visualization (Mermaid, chart, code animation) is available. | Generative Media |
+| 4 | **[Gradium](https://gradium.ai)** | Text‑to‑speech narration in 3 languages (English, French, German). Powers continuous Cinema Mode voiceover and per‑slide audio in Slide Mode. | Voice AI |
+| 5 | **[Alpic Skybridge](https://alpic.ai)** | ChatGPT App integration — analyze repos, compare projects, generate pitch decks directly inside ChatGPT via MCP. | ChatGPT Apps |
+| 6 | **[Dify](https://dify.ai)** | Multi‑agent orchestration (in progress) for advanced analysis pipelines. | AI Agents |
+| 7 | **[Dust](https://dust.tt)** | Private multi‑repository analysis for enterprise use cases (exploring). | AI Platform |
+
+### Additional Technologies
+| Technology | Role |
+|------------|------|
+| [OpenAI Codex](https://openai.com/index/openai-codex/) | Code understanding and generation for repository analysis |
+| [DeepWiki](https://deepwiki.com) | AI‑analyzed documentation for deeper architectural context |
+| [ZeroML/ZML](https://zml.ai) | High‑performance inference exploration |
+| [Recharts](https://recharts.org) | Animated data visualizations |
+| [Mermaid](https://mermaid.js.org) | UML diagrams (flowchart, sequence, class, state) |
+| [Framer Motion](https://www.framer.com/motion) | UI animations and transitions |
+
+---
+
+
 
 ## 🚀 Quickstart
 
