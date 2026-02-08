@@ -1,4 +1,3 @@
-```yaml
 # CodeTale — Dify Workflow DSL
 app:
   description: "Analyze a GitHub repository and generate a structured slide-presentation JSON."
@@ -686,4 +685,3 @@ workflow:
       zoom: 1.0
 
   rag_pipeline_variables: []
-```
