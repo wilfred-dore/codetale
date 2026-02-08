@@ -54,30 +54,8 @@ export function PresentationTopBar({
         </div>
       </div>
 
-      {/* Center: Mode toggle */}
+      {/* Center: Mode toggle — Analysis → Slides → Cinema */}
       <div className="flex items-center bg-secondary/50 rounded-lg p-0.5">
-        <button
-          onClick={() => onModeChange("cinema")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-            viewMode === "cinema"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Clapperboard className="w-3.5 h-3.5" />
-          Cinema
-        </button>
-        <button
-          onClick={() => onModeChange("slides")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-            viewMode === "slides"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <LayoutDashboard className="w-3.5 h-3.5" />
-          Slides
-        </button>
         {hasAnalysis && (
           <button
             onClick={() => onModeChange("analysis")}
@@ -91,6 +69,28 @@ export function PresentationTopBar({
             Analysis
           </button>
         )}
+        <button
+          onClick={() => onModeChange("slides")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+            viewMode === "slides"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <LayoutDashboard className="w-3.5 h-3.5" />
+          Slides
+        </button>
+        <button
+          onClick={() => onModeChange("cinema")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+            viewMode === "cinema"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Clapperboard className="w-3.5 h-3.5" />
+          Cinema
+        </button>
       </div>
 
       {/* Right: Actions */}

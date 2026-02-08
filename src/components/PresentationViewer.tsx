@@ -138,6 +138,7 @@ export function PresentationViewer({ presentation, onNewStory, analysisData }: P
             <ModeSelectionScreen
               repoName={repoInfo.name}
               onSelect={setViewMode}
+              hasAnalysis={!!analysisData}
             />
           </motion.div>
         )}

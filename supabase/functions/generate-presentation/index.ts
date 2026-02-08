@@ -299,7 +299,7 @@ The 6 slides MUST follow this structure:
 2. Overview - What the project does in simple, clear terms (type: "overview")
 3. Architecture - Deep technical architecture with a DETAILED mermaid diagram showing real components, services, data flows, and their relationships. Use subgraphs, emojis, and 8-15+ nodes. This is the most impressive slide — make the diagram publication-quality. (type: "architecture")
 4. Key Features / Data Insights - Standout capabilities. For data science / ML projects, use type "data" and provide chartConfig with real metrics. For other projects, use type "features".
-5. Code Walkthrough / Algorithm - A practical usage snippet. For algorithm-heavy projects, use type "algorithm" and provide codeAnimation with step-by-step highlighting AND optionally a dataStructureAnimation. For other projects, use type "code".
+5. Code Walkthrough / Algorithm - ALWAYS use type "algorithm" and ALWAYS provide a codeAnimation with step-by-step highlighting. This is MANDATORY for every repository. Show the core algorithm, main function, key API usage, or signature code pattern. Also add a dataStructureAnimation when the code involves data structures.
 6. Impact - Adoption stats, community, and call-to-action (type: "impact")
 
 For each slide, provide:
@@ -308,14 +308,14 @@ For each slide, provide:
 - visualDescription: A vivid scene description for AI image generation (for a dark-themed tech illustration)
 - voiceScript: MANDATORY narration script (30-50 words, conversational, professional). EVERY slide MUST have a voiceScript — this is critical for continuous audio narration.
 - type: One of "hook", "overview", "architecture", "features", "code", "impact", "data", "algorithm"
-- mermaidDiagram: ONLY for the architecture slide, provide a valid Mermaid flowchart diagram string. For other slides, omit this field.
+- mermaidDiagram: For the architecture slide, provide a DETAILED Mermaid diagram. You can ALSO add mermaid diagrams to OTHER slides when useful — for example a class diagram (classDiagram), sequence diagram (sequenceDiagram), or state diagram (stateDiagram-v2) on features/code slides. Use the most appropriate UML diagram type for each case. Multiple slides CAN have mermaid diagrams.
 - stats: For slides that mention numbers (stars, downloads, forks, performance metrics, adoption figures, percentages), provide an array of stat objects with {label, value, suffix?, prefix?}. Omit for slides without meaningful numbers.
 - chartConfig: For "data" type slides ONLY. Provide chart visualization data:
   {type: "bar"|"line"|"pie"|"radar"|"area", title: "Chart Title", data: [{name: "Label", value: 42}, ...], series: ["value"], xAxisLabel?: "X", yAxisLabel?: "Y"}
   Use REAL data from the README: benchmarks, performance comparisons, language distributions, accuracy metrics, etc.
-- codeAnimation: For "algorithm" type slides ONLY. Step-by-step code walkthrough:
+- codeAnimation: MANDATORY for slide 5 (algorithm type). Step-by-step code walkthrough:
   {code: "function example() {\\n  ...\\n}", language: "python", steps: [{lines: [1,2], explanation: "Initialize the variables"}, {lines: [3,4,5], explanation: "Process the data"}, ...]}
-  Use actual code patterns from the repository. 4-8 steps maximum.
+  Use actual code patterns from the repository. 4-8 steps maximum. EVERY presentation MUST have a codeAnimation on the algorithm slide. For system-level repos (OS, drivers, firmware), show the core system call, interrupt handler, or main loop. For libraries, show the primary API usage. For apps, show the main workflow.
 - dataStructureAnimation: For "algorithm" type slides, optionally add a data structure visualization:
   {type: "array"|"tree"|"graph"|"stack"|"queue"|"linked-list", steps: [{nodes: [{id: "1", label: "5", highlight: true}, ...], edges: [{from: "1", to: "2"}], caption: "Step description"}, ...]}
   3-6 steps maximum. Use this to visualize how the algorithm transforms data.
@@ -326,7 +326,9 @@ IMPORTANT for stats: Extract real numbers from the repository data. Use stars, f
 
 IMPORTANT for chartConfig: Only use for data-heavy repos (ML, data science, benchmarks). Extract REAL metrics from the README. Don't invent numbers.
 
-IMPORTANT for codeAnimation: Show the CORE algorithm or usage pattern. Keep code under 20 lines. Each step should highlight 1-3 lines with a clear explanation.
+IMPORTANT for codeAnimation: This is MANDATORY — EVERY presentation must have a codeAnimation on the algorithm slide. Show the CORE algorithm or usage pattern. Keep code under 20 lines. Each step should highlight 1-3 lines with a clear explanation. For MS-DOS-like repos, show interrupt handlers (INT 21h), boot sequences, etc. For React repos, show hook patterns. Always find the signature code pattern of the repo.
+
+IMPORTANT for mermaidDiagram: You can use mermaid diagrams on MULTIPLE slides, not just architecture. Use classDiagram for OOP hierarchies, sequenceDiagram for request flows, stateDiagram-v2 for state machines. Choose the UML type that best fits each slide's content.
 
 IMPORTANT for mermaidDiagram: Generate RICH, DETAILED architecture diagrams using advanced Mermaid syntax. Don't just use simple flowcharts. Choose the most appropriate diagram type:
 
