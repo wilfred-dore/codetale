@@ -25,8 +25,27 @@ if (env === "production") {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
 
+  // Serve assets from both base and nested directories, with explicit CORS
+  const assetsPath = path.join(__dirname, "assets");
+  const nestedAssetsPath = path.join(assetsPath, "assets");
+
   app.use("/assets", cors());
-  app.use("/assets", express.static(path.join(__dirname, "assets")));
+
+  // Try serving from nested assets folder first (as Vite sometimes nests them)
+  app.use("/assets", express.static(nestedAssetsPath, {
+    setHeaders: (res) => {
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Cross-Origin-Resource-Policy", "cross-origin");
+    }
+  }));
+
+  // Fallback to base assets folder
+  app.use("/assets", express.static(assetsPath, {
+    setHeaders: (res) => {
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Cross-Origin-Resource-Policy", "cross-origin");
+    }
+  }));
 }
 
 app.listen(3000, (error) => {
