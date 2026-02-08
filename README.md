@@ -282,14 +282,32 @@ ngrok http 3000
 
 ## 🎥 Demo Gallery
 
-One‑click generation from the UI:
+### Explore Existing Codebases
 
-| Project | Type | Highlights |
-|---------|------|------------|
-| **MS-DOS** | Cinema / Slides | INT 21h interrupt handler animation, system architecture |
-| **Apollo 11** | Cinema / Slides | AGC guidance computer, mission‑critical code walkthrough |
-| **Sorting Algorithms** | Slides + Animations | Bubble, merge, quick sort — animated with data structures |
-| **Alpic Skybridge** | Video Demo | [Watch Video](demo_videos/AlpicSkybridgeDemo.mp4) |
+Try CodeTale with these curated examples:
+
+| Project | Repository | Highlights |
+|---------|------------|------------|
+| **Apollo 11** | [chrislgarry/Apollo-11](https://github.com/chrislgarry/Apollo-11) | AGC guidance computer, mission‑critical code walkthrough |
+| **MS-DOS** | [microsoft/MS-DOS](https://github.com/microsoft/MS-DOS) | INT 21h interrupt handler animation, system architecture |
+| **Sorting Algorithms** | [TheAlgorithms/Python](https://github.com/TheAlgorithms/Python) | Bubble, merge, quick sort — animated with data structures |
+| **Data Science Olympics** | [drivendataorg/cookiecutter-data-science](https://github.com/drivendataorg/cookiecutter-data-science) | Data science project structure and best practices |
+
+### From Partners
+
+See CodeTale in action with our hackathon partners' own codebases:
+
+| Partner | Repository | What CodeTale Reveals |
+|---------|------------|----------------------|
+| **Alpic Skybridge** | [alpic-ai/skybridge](https://github.com/alpic-ai/skybridge) | MCP server architecture, ChatGPT app integration patterns • [📹 Watch Demo](demo_videos/AlpicSkybridgeDemo.mp4) |
+| **Gradium** | [gradium-ai/gradium-python](https://github.com/gradium-ai/gradium-python) | TTS API client, multilingual voice synthesis |
+| **OpenAI Cookbook** | [openai/openai-cookbook](https://github.com/openai/openai-cookbook) | GPT integration patterns, prompt engineering examples |
+| **Dify** | [langgenius/dify](https://github.com/langgenius/dify) | Multi-agent orchestration, LLM workflow engine |
+| **Dust** | [dust-tt/dust](https://github.com/dust-tt/dust) | Enterprise AI platform, private codebase analysis |
+| **fal.ai JS Client** | [fal-ai/fal-js](https://github.com/fal-ai/fal-js) | Image generation API, TypeScript SDK patterns |
+| **ZeroML** | [zml/zml](https://github.com/zml/zml) | High-performance ML inference, hardware acceleration |
+
+> 💡 **Try it yourself**: Paste any GitHub URL into CodeTale and watch it generate a cinematic presentation in minutes!
 
 ---
 
