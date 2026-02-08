@@ -32,7 +32,7 @@ if (env === "production") {
   app.use("/assets", cors());
 
   // Try serving from nested assets folder first (as Vite sometimes nests them)
-  app.use("/assets", express.static(nestedAssetsPath, {
+  app.use("/app-widgets-v1", express.static(nestedAssetsPath, {
     setHeaders: (res) => {
       res.set("Access-Control-Allow-Origin", "*");
       res.set("Cross-Origin-Resource-Policy", "cross-origin");
@@ -40,12 +40,29 @@ if (env === "production") {
   }));
 
   // Fallback to base assets folder
-  app.use("/assets", express.static(assetsPath, {
+  app.use("/app-widgets-v1", express.static(assetsPath, {
     setHeaders: (res) => {
       res.set("Access-Control-Allow-Origin", "*");
       res.set("Cross-Origin-Resource-Policy", "cross-origin");
     }
   }));
+
+  // Debug endpoint to check asset existence
+  app.get("/debug-assets", async (_req, res) => {
+    try {
+      const fs = (await import('node:fs')).default;
+      const list = (p: string) => fs.existsSync(p) ? fs.readdirSync(p) : [];
+      res.json({
+        __dirname,
+        assetsPath,
+        nestedAssetsPath,
+        assets: list(assetsPath),
+        nestedAssets: list(nestedAssetsPath)
+      });
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  });
 }
 
 app.listen(3000, (error) => {

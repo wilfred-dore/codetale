@@ -7,6 +7,7 @@ import { defineConfig, type PluginOption } from "vite";
 export default defineConfig({
   plugins: [skybridge() as PluginOption, react()],
   root: __dirname,
+  base: "/app-widgets-v1/",
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
