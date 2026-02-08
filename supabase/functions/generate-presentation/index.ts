@@ -220,7 +220,7 @@ async function generateSlides(
   language: string = "en",
   deepWikiContent: string = ""
 ): Promise<SlideData[]> {
-  // AI provider cascade: Lovable AI (gpt-5.2) → OpenAI Direct (gpt-4.1) → OpenAI Mini (gpt-4.1-mini)
+  // AI provider cascade: OpenAI Direct (gpt-5.2-pro) → Lovable AI (gpt-5.2) → OpenAI Mini (gpt-4o-mini)
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   
@@ -237,7 +237,17 @@ async function generateSlides(
 
   const providers: AIProvider[] = [];
 
-  // Priority 1: Lovable AI (gpt-5.2) — best model
+  // Priority 1: OpenAI Direct (gpt-5.2-pro) — best model, ChatGPT Pro
+  if (OPENAI_API_KEY) {
+    providers.push({
+      name: "OpenAI Direct (gpt-5.2-pro)",
+      endpoint: "https://api.openai.com/v1/chat/completions",
+      key: OPENAI_API_KEY,
+      model: "gpt-5.2-pro",
+    });
+  }
+
+  // Priority 2: Lovable AI (gpt-5.2) — gateway fallback
   if (LOVABLE_API_KEY) {
     providers.push({
       name: "Lovable AI (gpt-5.2)",
@@ -247,23 +257,13 @@ async function generateSlides(
     });
   }
 
-  // Priority 2: OpenAI Direct (gpt-4.1)
+  // Priority 3: OpenAI Mini (gpt-4o-mini) — cheapest fallback
   if (OPENAI_API_KEY) {
     providers.push({
-      name: "OpenAI Direct (gpt-4.1)",
+      name: "OpenAI Mini (gpt-4o-mini)",
       endpoint: "https://api.openai.com/v1/chat/completions",
       key: OPENAI_API_KEY,
-      model: "gpt-4.1",
-    });
-  }
-
-  // Priority 3: OpenAI Mini (gpt-4.1-mini) — cheapest fallback
-  if (OPENAI_API_KEY) {
-    providers.push({
-      name: "OpenAI Mini (gpt-4.1-mini)",
-      endpoint: "https://api.openai.com/v1/chat/completions",
-      key: OPENAI_API_KEY,
-      model: "gpt-4.1-mini",
+      model: "gpt-4o-mini",
     });
   }
 
