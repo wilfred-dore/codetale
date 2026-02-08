@@ -6,6 +6,7 @@ const partners = [
   { name: "Lovable", url: "https://lovable.dev" },
   { name: "fal.ai", url: "https://fal.ai" },
   { name: "Gradium", url: "https://gradium.ai" },
+  { name: "Alpic Skybridge", url: "https://skybridge.tech" },
 ];
 
 export function Hero() {
