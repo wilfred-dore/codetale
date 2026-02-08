@@ -50,8 +50,10 @@ if (env === "production") {
 
 app.listen(3000, (error) => {
   if (error) {
-    console.error("Failed to start server:", error);
+    console.error("Error starting server:", error);
     process.exit(1);
+  } else {
+    console.log("Server listening on port 3000");
   }
 });
 
