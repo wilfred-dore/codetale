@@ -12,7 +12,7 @@
 [📄 View presentation slides](slides/CodeTalePresentation.pdf)
 [📹 Watch Deep Dive Video](demo_videos/AlpicSkybridgeDemo.mp4)
 
-> 🏆 **{Tech: Europe} Paris AI Hackathon 2026** — Built in 48 hours at NeonNoir, Paris.
+> 🏆 **{Tech: Europe} Paris AI Hackathon 2026** — Built in 48 hours in Paris.
 
 ---
 
