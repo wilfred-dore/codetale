@@ -48,34 +48,73 @@ setInterval(() => {
 // ─── Config ────────────────────────────────────────────────────────────────────
 
 const DEFAULT_MAX_FILES = 30;
-const MAX_LINES_PER_FILE = 500;
+const SMART_TRUNCATE_THRESHOLD = 300; // lines
+const SMART_TRUNCATE_HEAD = 100;
+const SMART_TRUNCATE_TAIL = 50;
 
 const SOURCE_EXTENSIONS = new Set([
   ".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".rs", ".java",
   ".cpp", ".c", ".h", ".hpp", ".rb", ".swift", ".kt", ".kts",
   ".scala", ".clj", ".ex", ".exs", ".zig", ".lua", ".php",
   ".cs", ".fs", ".ml", ".hs", ".erl", ".sh", ".bash",
+  ".yaml", ".yml", ".toml", ".ini", ".cfg",
 ]);
 
 const EXCLUDED_DIRS = new Set([
   "node_modules", "vendor", "dist", "build", ".git", "__pycache__",
   ".next", ".nuxt", "target", "out", "coverage", ".cache",
   ".vscode", ".idea", "bin", "obj", "venv", "env", ".env",
-  "assets", "static", "public/assets", "docs",
+  "assets", "static", "public/assets", "docs", ".github",
+  "migrations", "fixtures", "seeds", "test", "tests", "spec",
+  "__tests__", "__mocks__", ".turbo", ".parcel-cache",
+]);
+
+const EXCLUDED_EXTENSIONS = new Set([
+  ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp", ".bmp", ".tiff",
+  ".woff", ".woff2", ".ttf", ".eot", ".otf",
+  ".exe", ".dll", ".so", ".dylib", ".wasm", ".bin", ".o", ".a",
+  ".csv", ".parquet", ".sqlite", ".db",
+  ".map", ".min.js", ".min.css",
+  ".lock",
+  ".zip", ".tar", ".gz", ".rar", ".7z",
+  ".mp3", ".mp4", ".wav", ".avi", ".mov", ".webm",
+]);
+
+const EXCLUDED_FILENAMES = new Set([
+  "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lockb",
+  "Gemfile.lock", "Pipfile.lock", "poetry.lock", "composer.lock",
+  "go.sum", "Cargo.lock", "flake.lock",
+  ".DS_Store", "Thumbs.db", ".gitignore", ".gitattributes",
+  ".editorconfig", ".prettierrc", ".eslintignore",
 ]);
 
 const EXCLUDED_PATTERNS = [
   /\.test\./i, /\.spec\./i, /\.d\.ts$/i, /\.min\./i,
-  /lock\./i, /\.lock$/i, /\.map$/i, /\.snap$/i,
-  /\.config\./i, /\.conf\./i, /tsconfig/i, /eslint/i,
-  /prettier/i, /jest/i, /vitest/i, /webpack/i, /vite\.config/i,
-  /babel/i, /postcss/i, /tailwind\.config/i,
+  /\.snap$/i, /\.stories\./i, /\.e2e\./i,
 ];
 
 const IDENTITY_FILES = [
-  "README.md", "readme.md", "package.json", "Cargo.toml",
-  "pyproject.toml", "go.mod", "pom.xml", "build.gradle",
-  "Gemfile", "composer.json", "setup.py", "setup.cfg",
+  "README.md", "readme.md", "README.rst", "README.txt",
+  "package.json", "Cargo.toml", "pyproject.toml", "go.mod",
+  "pom.xml", "build.gradle", "Gemfile", "composer.json",
+  "setup.py", "setup.cfg", "deno.json", "deno.jsonc",
+];
+
+const CONFIG_FILES = new Set([
+  "tsconfig.json", "vite.config.ts", "vite.config.js",
+  "next.config.js", "next.config.mjs", "next.config.ts",
+  "webpack.config.js", "webpack.config.ts",
+  "rollup.config.js", "rollup.config.ts",
+  "Dockerfile", "docker-compose.yml", "docker-compose.yaml",
+  ".env.example", "Makefile", "Procfile",
+  "nest-cli.json", "angular.json", "nuxt.config.ts",
+]);
+
+const HIGH_RELEVANCE_KEYWORDS = [
+  "route", "router", "api", "controller", "handler",
+  "schema", "model", "type", "interface", "entity",
+  "middleware", "guard", "interceptor", "service",
+  "store", "context", "provider", "hook",
 ];
 
 // ─── GitHub helpers ────────────────────────────────────────────────────────────
@@ -144,9 +183,28 @@ function isExcludedPattern(filename: string): boolean {
   return EXCLUDED_PATTERNS.some((rx) => rx.test(filename));
 }
 
+function isExcludedFile(path: string): boolean {
+  const filename = path.split("/").pop() || "";
+  const ext = getExtension(filename);
+
+  if (EXCLUDED_FILENAMES.has(filename)) return true;
+  if (EXCLUDED_EXTENSIONS.has(ext)) return true;
+  if (isExcludedDir(path)) return true;
+  if (isExcludedPattern(filename)) return true;
+
+  return false;
+}
+
 function getExtension(path: string): string {
   const idx = path.lastIndexOf(".");
   return idx >= 0 ? path.substring(idx).toLowerCase() : "";
+}
+
+/** Compute adaptive budget based on repo size */
+function getAdaptiveBudget(codeFileCount: number, requestedMax: number): number {
+  if (codeFileCount <= 30) return codeFileCount; // small repo: read all
+  if (codeFileCount <= 100) return Math.min(25, requestedMax); // medium
+  return Math.min(20, requestedMax); // large
 }
 
 interface PrioritizedFile {
@@ -154,41 +212,127 @@ interface PrioritizedFile {
   priority: number;
 }
 
-function prioritizeFiles(files: TreeItem[], maxFiles: number): PrioritizedFile[] {
-  const result: PrioritizedFile[] = [];
+interface SamplingStats {
+  total_files: number;
+  code_files: number;
+  excluded_files: number;
+  selected_files: number;
+  budget_strategy: string;
+  file_type_distribution: Record<string, number>;
+  skipped_categories: { category: string; count: number }[];
+}
 
+function prioritizeFiles(files: TreeItem[], maxFiles: number): { selected: PrioritizedFile[]; stats: SamplingStats } {
+  const result: PrioritizedFile[] = [];
+  const excluded: { path: string; reason: string }[] = [];
+  const extCounts: Record<string, number> = {};
+
+  // Count all file types for metadata
   for (const file of files) {
+    const ext = getExtension(file.path.split("/").pop() || "");
+    extCounts[ext] = (extCounts[ext] || 0) + 1;
+  }
+
+  // Filter to candidate files
+  const candidates: TreeItem[] = [];
+  for (const file of files) {
+    if (isExcludedFile(file.path)) {
+      excluded.push({ path: file.path, reason: "excluded" });
+      continue;
+    }
+    candidates.push(file);
+  }
+
+  // Determine adaptive budget
+  const budget = getAdaptiveBudget(candidates.length, maxFiles);
+  const budgetStrategy = candidates.length <= 30 ? "small_repo_all"
+    : candidates.length <= 100 ? "medium_repo_top25"
+    : "large_repo_top20";
+
+  for (const file of candidates) {
     const filename = file.path.split("/").pop() || "";
     const ext = getExtension(filename);
+    const lowerName = filename.toLowerCase().replace(ext, "");
+    const lowerPath = file.path.toLowerCase();
+    const depth = file.path.split("/").length;
 
-    if (isExcludedDir(file.path)) continue;
-    if (isExcludedPattern(filename)) continue;
-
+    // Priority 1: Identity files (README, package.json, etc.)
     if (IDENTITY_FILES.includes(filename)) {
       result.push({ path: file.path, priority: 1 });
       continue;
     }
 
-    if (!SOURCE_EXTENSIONS.has(ext)) continue;
-
-    const lowerPath = file.path.toLowerCase();
-    const lowerName = filename.toLowerCase().replace(ext, "");
-
-    if (["main", "index", "app", "server", "core", "mod", "lib"].some((k) => lowerName.includes(k))) {
+    // Priority 2: Config files (Dockerfile, tsconfig, etc.)
+    if (CONFIG_FILES.has(filename)) {
       result.push({ path: file.path, priority: 2 });
       continue;
     }
 
-    if (/^(src|lib|pkg|app|core|internal|cmd)\//i.test(lowerPath)) {
+    // Only source code from here
+    if (!SOURCE_EXTENSIONS.has(ext)) continue;
+
+    // Priority 3: Entry points
+    if (["main", "index", "app", "server", "core", "mod", "lib"].some((k) => lowerName === k || lowerName.startsWith(k + "."))) {
       result.push({ path: file.path, priority: 3 });
       continue;
     }
 
-    result.push({ path: file.path, priority: 4 });
+    // Priority 4: High-relevance keyword files (routes, schemas, models, etc.)
+    if (HIGH_RELEVANCE_KEYWORDS.some((kw) => lowerName.includes(kw) || lowerPath.includes(`/${kw}/`))) {
+      result.push({ path: file.path, priority: 4 });
+      continue;
+    }
+
+    // Priority 5: Top-level src/lib/app files
+    if (/^(src|lib|pkg|app|core|internal|cmd)\//i.test(lowerPath) && depth <= 3) {
+      result.push({ path: file.path, priority: 5 });
+      continue;
+    }
+
+    // Priority 6: Other source files (deeper or less relevant)
+    result.push({ path: file.path, priority: 6 });
   }
 
-  result.sort((a, b) => a.priority - b.priority || a.path.length - b.path.length);
-  return result.slice(0, maxFiles);
+  // Sort by priority then by path depth (shallower = more relevant)
+  result.sort((a, b) => a.priority - b.priority || a.path.split("/").length - b.path.split("/").length);
+  const selected = result.slice(0, budget);
+
+  // Build skipped categories for metadata
+  const skippedCategories: { category: string; count: number }[] = [];
+  const nodeModulesCount = files.filter((f) => f.path.includes("node_modules/")).length;
+  const assetCount = files.filter((f) => {
+    const ext = getExtension(f.path.split("/").pop() || "");
+    return [".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp", ".woff", ".woff2", ".ttf", ".eot"].includes(ext);
+  }).length;
+  const lockCount = files.filter((f) => {
+    const fn = f.path.split("/").pop() || "";
+    return EXCLUDED_FILENAMES.has(fn) || fn.endsWith(".lock");
+  }).length;
+
+  if (nodeModulesCount > 0) skippedCategories.push({ category: "dependency files (node_modules, vendor)", count: nodeModulesCount });
+  if (assetCount > 0) skippedCategories.push({ category: "asset files (images, fonts)", count: assetCount });
+  if (lockCount > 0) skippedCategories.push({ category: "lock files", count: lockCount });
+
+  // File type distribution (top extensions)
+  const sortedExts = Object.entries(extCounts).sort(([, a], [, b]) => b - a);
+  const totalExts = sortedExts.reduce((s, [, c]) => s + c, 0);
+  const fileTypeDistribution: Record<string, number> = {};
+  for (const [ext, count] of sortedExts.slice(0, 8)) {
+    fileTypeDistribution[ext || "(no ext)"] = Math.round((count / totalExts) * 100);
+  }
+
+  return {
+    selected,
+    stats: {
+      total_files: files.length,
+      code_files: candidates.length,
+      excluded_files: excluded.length,
+      selected_files: selected.length,
+      budget_strategy: budgetStrategy,
+      file_type_distribution: fileTypeDistribution,
+      skipped_categories: skippedCategories,
+    },
+  };
 }
 
 async function fetchFileContent(owner: string, repo: string, path: string): Promise<string> {
@@ -207,8 +351,12 @@ async function fetchFileContent(owner: string, repo: string, path: string): Prom
 
   const text = await res.text();
   const lines = text.split("\n");
-  if (lines.length > MAX_LINES_PER_FILE) {
-    return lines.slice(0, MAX_LINES_PER_FILE).join("\n") + "\n\n// ... truncated (file has " + lines.length + " lines) ...";
+
+  // Smart truncation: for large files, keep head + tail for context
+  if (lines.length > SMART_TRUNCATE_THRESHOLD) {
+    const head = lines.slice(0, SMART_TRUNCATE_HEAD).join("\n");
+    const tail = lines.slice(-SMART_TRUNCATE_TAIL).join("\n");
+    return `${head}\n\n// ... [${lines.length - SMART_TRUNCATE_HEAD - SMART_TRUNCATE_TAIL} lines omitted — file has ${lines.length} total lines] ...\n\n${tail}`;
   }
   return text;
 }
@@ -219,6 +367,7 @@ interface AnalysisOptions {
   include_narrative?: boolean;
   include_mermaid?: boolean;
   target_audience?: "developer" | "manager" | "investor" | "all";
+  sampling_context?: string; // metadata enrichment for the AI
 }
 
 async function analyzeWithAI(
@@ -234,15 +383,19 @@ async function analyzeWithAI(
     throw new Error("No AI API key configured");
   }
 
-  const { include_narrative = true, include_mermaid = true, target_audience = "all" } = options;
+  const { include_narrative = true, include_mermaid = true, target_audience = "all", sampling_context = "" } = options;
 
   const fileBlock = filesContent
     .map((f) => `--- ${f.path} ---\n${f.content}`)
     .join("\n\n");
 
+  // Prepend sampling context so the AI knows the full picture
+  const contextPrefix = sampling_context ? `REPOSITORY CONTEXT:\n${sampling_context}\n\n` : "";
+
   const systemPrompt = `You are an expert software architect. Analyze the entire codebase provided and return a comprehensive analysis as structured JSON.
 
-Be precise and factual. Extract real data from the code — don't make up metrics.`;
+Be precise and factual. Extract real data from the code — don't make up metrics.
+When the repository context mentions files that were skipped, factor that into your analysis (e.g., the true scale and complexity of the project).`;
 
   // Build optional sections
   const optionalFields: string[] = [];
@@ -270,7 +423,7 @@ Be precise and factual. Extract real data from the code — don't make up metric
   }`;
   }
 
-  const userPrompt = `Analyze this entire codebase for the repository ${owner}/${repo}.
+  const userPrompt = `${contextPrefix}Analyze this entire codebase for the repository ${owner}/${repo}.
 
 FILES:
 ${fileBlock}
@@ -574,9 +727,11 @@ serve(async (req) => {
     const allFiles = await fetchFileTree(owner, repo);
     console.log(`  Found ${allFiles.length} total files`);
 
-    // Step 2: Prioritize & filter
-    const prioritized = prioritizeFiles(allFiles, maxFiles);
-    console.log(`  Selected ${prioritized.length} files for analysis`);
+    // Step 2: Smart prioritize & filter
+    const { selected: prioritized, stats: samplingStats } = prioritizeFiles(allFiles, maxFiles);
+    console.log(`  Strategy: ${samplingStats.budget_strategy}`);
+    console.log(`  Code files: ${samplingStats.code_files} | Excluded: ${samplingStats.excluded_files} | Selected: ${samplingStats.selected_files}`);
+    console.log(`  File types: ${JSON.stringify(samplingStats.file_type_distribution)}`);
 
     if (prioritized.length === 0) {
       return new Response(
@@ -606,12 +761,33 @@ serve(async (req) => {
       console.log(`  Fetched ${Math.min(i + BATCH_SIZE, prioritized.length)}/${prioritized.length} files`);
     }
 
+    // Estimate token count
+    const estimatedTokens = filesContent.reduce((sum, f) => sum + Math.ceil(f.content.length / 4), 0);
+    console.log(`  Estimated tokens: ~${estimatedTokens.toLocaleString()}`);
+
+    // Build metadata enrichment context for AI
+    const skippedSummary = samplingStats.skipped_categories
+      .map((s) => `${s.count} ${s.category}`)
+      .join(", ");
+    const typeDistStr = Object.entries(samplingStats.file_type_distribution)
+      .map(([ext, pct]) => `${ext} (${pct}%)`)
+      .join(", ");
+
+    const samplingContext = [
+      `Repository has ${samplingStats.total_files} files total.`,
+      `${samplingStats.selected_files} code files were analyzed in detail (strategy: ${samplingStats.budget_strategy}).`,
+      skippedSummary ? `Skipped: ${skippedSummary}.` : "",
+      `File types present: ${typeDistStr}.`,
+      `Estimated context: ~${estimatedTokens.toLocaleString()} tokens.`,
+    ].filter(Boolean).join(" ");
+
     // Step 4: AI analysis
     console.log("Step 3: AI analyzing architecture...");
     const { analysis, model_used } = await analyzeWithAI(owner, repo, filesContent, {
       include_narrative: includeNarrative,
       include_mermaid: includeMermaid,
       target_audience: targetAudience,
+      sampling_context: samplingContext,
     });
 
     const analysisTimeMs = Date.now() - startTime;
@@ -624,21 +800,30 @@ serve(async (req) => {
         _meta: {
           owner,
           repo,
-          files_scanned: prioritized.length,
-          total_files: allFiles.length,
+          files_scanned: samplingStats.selected_files,
+          total_files: samplingStats.total_files,
           analyzed_at: new Date().toISOString(),
+          sampling: {
+            strategy: samplingStats.budget_strategy,
+            code_files_found: samplingStats.code_files,
+            files_excluded: samplingStats.excluded_files,
+            estimated_tokens: estimatedTokens,
+            file_type_distribution: samplingStats.file_type_distribution,
+          },
         },
       },
       metadata: {
-        files_scanned: prioritized.length,
-        total_files_in_repo: allFiles.length,
+        files_scanned: samplingStats.selected_files,
+        total_files_in_repo: samplingStats.total_files,
         analysis_time_ms: analysisTimeMs,
         model_used,
+        sampling_strategy: samplingStats.budget_strategy,
+        estimated_tokens: estimatedTokens,
         timestamp: new Date().toISOString(),
       },
     };
 
-    console.log(`=== Analysis complete for ${owner}/${repo} in ${analysisTimeMs}ms ===`);
+    console.log(`=== Analysis complete for ${owner}/${repo} in ${analysisTimeMs}ms (${samplingStats.selected_files}/${samplingStats.total_files} files, ~${estimatedTokens} tokens) ===`);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

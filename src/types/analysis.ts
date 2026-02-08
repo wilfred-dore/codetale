@@ -27,12 +27,21 @@ export interface TargetAudiences {
   investor: string;
 }
 
+export interface SamplingInfo {
+  strategy: string;
+  code_files_found: number;
+  files_excluded: number;
+  estimated_tokens: number;
+  file_type_distribution: Record<string, number>;
+}
+
 export interface AnalysisMeta {
   owner: string;
   repo: string;
   files_scanned: number;
   total_files: number;
   analyzed_at: string;
+  sampling?: SamplingInfo;
 }
 
 export interface RepoAnalysis {

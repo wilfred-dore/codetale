@@ -160,7 +160,14 @@ export function AnalysisResults({ analysis, onGeneratePresentation, onBack, onBa
         <CardContent className="p-4 space-y-3">
           <ComplexityMeter score={analysis.complexity_score} />
           <div className="flex items-center justify-between text-xs text-muted-foreground font-mono">
-            <span>{analysis._meta.files_scanned} files analyzed / {analysis._meta.total_files} total</span>
+            <span>
+              {analysis._meta.files_scanned} files analyzed / {analysis._meta.total_files} total
+              {analysis._meta.sampling && (
+                <span className="text-primary/70 ml-1">
+                  ({analysis._meta.sampling.strategy.replace(/_/g, " ")} · ~{(analysis._meta.sampling.estimated_tokens / 1000).toFixed(1)}k tokens)
+                </span>
+              )}
+            </span>
             <span>{analysis._meta.owner}/{analysis._meta.repo}</span>
           </div>
         </CardContent>
