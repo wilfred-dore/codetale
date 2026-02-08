@@ -556,3 +556,30 @@ graph LR
 - 🔜 Production deployment on Dify Cloud
 
 ---
+
+---
+
+## 💎 Open Source Spotlight: ZML
+
+To demonstrate CodeTale's power, we've analyzed the [ZML](https://github.com/zml/zml) repository—a high-performance machine learning inference engine.
+
+![ZML Analysis](screenshots/ZML.png)
+
+### Key Insights:
+- **Architecture**: A modular system designed for maximum throughput and low latency.
+- **Complexity**: High (8/10), featuring advanced memory management and tensor optimizations.
+- **Narrative**: CodeTale successfully translated complex C++/CUDA implementations into a clear visual story for stakeholders.
+
+---
+
+## 🎨 Demo Gallery
+
+Explore CodeTale's capabilities through our curated gallery of analyses and generated content.
+
+| Feature | Visual |
+|---------|--------|
+| **Architecture Overview** | ![Architecture](screenshots/Overview.png) |
+| **Dify Multi-Agent Workflow** | ![Dify Workflow](screenshots/workflow-diagram.png) |
+| **Alpic Skybridge Integration** | ![Skybridge](screenshots/AlpicSkybridge.png) |
+| **Dust Enterprise Analysis** | ![Dust](screenshots/Dust.png) |
+
