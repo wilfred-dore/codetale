@@ -438,3 +438,113 @@ ngrok http 3000
 ```
 
 ---
+
+---
+
+## 🤖 Dify Multi-Agent Workflow (Work in Progress)
+
+CodeTale is implementing an advanced **multi-agent orchestration system** using [Dify](https://dify.ai) to enhance repository analysis with specialized AI agents.
+
+### Architecture
+
+The workflow consists of **6 sequential stages** with **3 specialized LLM agents**:
+
+```mermaid
+graph LR
+    A[Parse URL] --> B[Fetch Tree]
+    B --> C[Fetch Key Files]
+    C --> D[DeepWiki Enrichment]
+    D --> E[Agent 1: Code Analyst]
+    E --> F[Agent 2: Script Writer]
+    F --> G[Agent 3: Quality Validator]
+    G --> H[Output JSON]
+    
+    style E fill:#4CAF50,stroke:#2E7D32,color:#fff
+    style F fill:#2196F3,stroke:#1565C0,color:#fff
+    style G fill:#FF9800,stroke:#E65100,color:#fff
+```
+
+### Workflow Stages
+
+| Stage | Type | Purpose |
+|-------|------|---------|
+| **1. Parse URL** | Code | Extract owner/repo from GitHub URL |
+| **2. Fetch Tree** | Code | Fetch repo metadata, file tree, README |
+| **3. Fetch Key Files** | Code | Select and fetch 8 key files (configs, entry points, schemas) |
+| **4. DeepWiki Enrichment** | Code | Fetch AI-analyzed documentation from DeepWiki (with graceful fallback) |
+| **5. Code Analyst** | LLM (GPT-4o) | Structured analysis: tech stack, architecture, patterns, complexity |
+| **6. Script Writer** | LLM (GPT-4o) | Transform analysis into compelling presentation script with narrative arc |
+| **7. Quality Validator** | LLM (GPT-4o) | Validate JSON, fix Mermaid syntax, ensure completeness |
+
+### Multi-Agent System
+
+#### 🔍 Agent 1: Code Analyst
+- **Role**: Senior Software Architect
+- **Input**: Metadata, file tree, README, key files, DeepWiki summary
+- **Output**: Structured JSON analysis
+  - Tech stack & architecture type
+  - Key components & data flow
+  - Design patterns detected
+  - Complexity score (1-10)
+  - Suggested diagrams (Mermaid specs)
+
+#### ✍️ Agent 2: Presentation Script Writer
+- **Role**: Tech Conference Speaker & Storytelling Expert
+- **Input**: Code analysis from Agent 1
+- **Output**: Presentation JSON (8-15 slides)
+  - Narrative arc: Hook → Context → Deep-dive → Wow-moment → Takeaway
+  - Varied slide types (title, architecture, code, diagram, comparison, quote)
+  - Speaker notes for each slide
+  - Mermaid diagrams & code snippets from actual repo
+
+#### ✅ Agent 3: Quality Validator
+- **Role**: QA Editor for Technical Presentations
+- **Input**: Presentation JSON from Agent 2
+- **Output**: Validated & corrected JSON
+  - Validates Mermaid syntax
+  - Ensures slide count (8-15)
+  - Checks for placeholders
+  - Fixes structural issues
+  - Adds validation metadata
+
+### Workflow Visualization
+
+![Dify Workflow Diagram](dify/workflow-diagram.png)
+
+> **Note**: The workflow is currently being integrated with the main CodeTale application. The Dify DSL is complete and can be imported into any Dify instance.
+
+### How to Use
+
+1. **Import into Dify**:
+   ```bash
+   # Import the workflow DSL
+   dify import dify/dify-dsl.yml
+   ```
+
+2. **Set Environment Variables**:
+   - `GITHUB_TOKEN`: Your GitHub personal access token (optional, for private repos)
+
+3. **Configure OpenAI Provider**:
+   - Go to Dify → Settings → Model Provider
+   - Add OpenAI API key
+   - Select `gpt-4o` as the default model
+
+4. **Run the Workflow**:
+   - Input: GitHub repository URL
+   - Output: Structured presentation JSON
+
+### Files
+
+- [`dify/dify-dsl.yml`](dify/dify-dsl.yml) - Complete Dify workflow definition
+- [`dify/workflow-diagram.png`](dify/workflow-diagram.png) - Visual workflow diagram
+- [`dify/workflow-diagram.svg`](dify/workflow-diagram.svg) - SVG version (scalable)
+
+### Status
+
+- ✅ Workflow DSL complete
+- ✅ 3-agent system implemented
+- ✅ DeepWiki integration with fallback
+- 🔜 Integration with main CodeTale app
+- 🔜 Production deployment on Dify Cloud
+
+---
