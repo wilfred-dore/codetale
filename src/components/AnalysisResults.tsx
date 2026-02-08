@@ -2,8 +2,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import {
   ChevronDown, ChevronUp, Sparkles, Layers, Code2, Lightbulb,
-  Users, ArrowRight, FileCode2, Puzzle, Zap, Image,
+  Users, ArrowRight, FileCode2, Puzzle, Zap, Image, Download,
 } from "lucide-react";
+import { downloadAnalysisMarkdown } from "@/utils/exportAnalysisMarkdown";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -324,27 +325,37 @@ export function AnalysisResults({ analysis, onGeneratePresentation, onBack, onBa
         </ExpandableCard>
       )}
 
-      {/* Action buttons — hidden when embedded in the presentation viewer */}
-      {!isEmbedded && (
-        <div className="flex items-center justify-center gap-4 pt-4">
-          {onBack && (
-            <Button variant="outline" onClick={onBack}>
-              ← New Analysis
-            </Button>
-          )}
-          {onBackToPresentation && (
-            <Button variant="outline" onClick={onBackToPresentation} className="gap-2">
-              ← Back to Presentation
-            </Button>
-          )}
-          {onGeneratePresentation && (
-            <Button onClick={onGeneratePresentation} className="gap-2">
-              Generate Presentation
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-      )}
+      {/* Export + Action buttons */}
+      <div className="flex items-center justify-center gap-4 pt-4">
+        <Button
+          variant="outline"
+          onClick={() => downloadAnalysisMarkdown(analysis)}
+          className="gap-2"
+        >
+          <Download className="w-4 h-4" />
+          Export Markdown
+        </Button>
+        {!isEmbedded && (
+          <>
+            {onBack && (
+              <Button variant="outline" onClick={onBack}>
+                ← New Analysis
+              </Button>
+            )}
+            {onBackToPresentation && (
+              <Button variant="outline" onClick={onBackToPresentation} className="gap-2">
+                ← Back to Presentation
+              </Button>
+            )}
+            {onGeneratePresentation && (
+              <Button onClick={onGeneratePresentation} className="gap-2">
+                Generate Presentation
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            )}
+          </>
+        )}
+      </div>
     </motion.div>
   );
 }
