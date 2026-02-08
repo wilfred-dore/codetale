@@ -9,11 +9,19 @@
 <img src="https://img.shields.io/badge/Voice-Gradium-orange" alt="Gradium" />
 <img src="https://img.shields.io/badge/ChatGPT%20App-Alpic%20Skybridge-teal" alt="Alpic Skybridge" />
 
-[🚀 Try it live](https://codetale-wdore.lovable.app) • [🌉 Test Alpic Skybridge](https://codetale-skybridge-a-24b76a95.alpic.live/try) • ChatGPT App in progress
-[📄 View pitch deck](documentation/CodeTalePitchPresentation.pdf)
-[🎬 Watch 2-min video demo](https://www.youtube.com/watch?v=INPmugJWCrw) *(old version)* • [See all demos](#-demo-gallery)
+## 🎯 Quick Links
 
-> ⚠️ **WARNING**: The demo video was recorded before the latest improvements (finer Git analysis, analysis dashboard, Mermaid UML diagrams, latest ChatGPT version, and Alpic Skybridge server).
+### 🚀 Live Applications
+- **[Try CodeTale Live](https://codetale-wdore.lovable.app)** — Transform any GitHub repo into a presentation
+- **[Test Alpic Skybridge](https://codetale-skybridge-a-24b76a95.alpic.live/try)** — ChatGPT App integration *(in progress)*
+
+### 📚 Documentation & Demos
+- **[View Pitch Deck](documentation/CodeTalePitchPresentation.pdf)** — Project overview and vision
+- **[Watch 2-min Video Demo](https://www.youtube.com/watch?v=INPmugJWCrw)** *(recorded before latest improvements)*
+- **[See All Demos](#-demo-gallery)** — Screenshots, videos, and examples
+
+> ⚠️ **Note**: The video demo was recorded before recent improvements including finer Git analysis, analysis dashboard, Mermaid UML diagrams, latest ChatGPT version, and Alpic Skybridge server.
+
 
 > 🏆 **{Tech: Europe} Paris AI Hackathon 2026** — Built in 48 hours in Paris.
 
